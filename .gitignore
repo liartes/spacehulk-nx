@@ -1,0 +1,30 @@
+build/
+*.nsp
+*.elf
+*.build
+launcher/build/
+launcher/romfs/
+launcher/*.nro
+launcher/*.nacp
+launcher/*.elf
+portlibs32/
+SD_CARD/
+SD_CARD.zip
+debug/
+.DS_Store
+mod/refs/
+mod/dcrmod.dll
+github_repo/
+template.md
+
+# development links in a worktree
+/portlibs32
+/mod/refs
+
+# game files: never committed (players bring their own)
+*.apk
+*.obb
+*.so
+
+# made from the player's APK (tools/make_icon.py)
+launcher/icon.jpg
