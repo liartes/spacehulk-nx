@@ -148,7 +148,7 @@ int port_load(const char *apk) {
   dcr_patches_apply(); /* Choreographer VSYNC enable/stop -> bx lr */
   void sh_threaded_apply(void);
   sh_threaded_apply(); /* Unity's multithreaded rendering on (sh_threaded.c) */
-  if (dcr_config()->sound_priority)
+  if (dcr_config()->voices64)
     dcr_fmod_patch_voices(); /* FMOD: 64 real voices, not 32 (dcr_fmod.c) */
   if (dcr_config()->mix_48k)
     dcr_fmod_patch_rate(); /* FMOD mixes at 48 kHz, as on a phone (dcr_fmod.c) */

@@ -14,7 +14,7 @@
 
 /* Space Hulk: the Disney Crossy Road features these fields drive (IL
  * patches, the C# mod, FMOD patches at that build's offsets) stay off. */
-static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0};
+static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1};
 static int g_aa_choice; /* [graphics] antialiasing: index in "game,0,2,4" */
 
 const DcrConfig *dcr_config(void) { return &g_cfg; }
@@ -48,6 +48,14 @@ static const CfgOpt k_opts[] = {
      "Read buffer of the game's other files, in KB (each refill is one request\n"
      "# to the SD card). 0: the C library's own, 1 KB.",
      CFG_INT, "0,16,32,64,128,256,512", &g_cfg.read_buf_kb},
+    {"audio", "mix_at_48khz", "true",
+     "Mix the game's audio at 48 kHz, as phones do. Off: 24 kHz, the Android\n"
+     "# fallback's rate (muffled music, harsh effects).",
+     CFG_BOOL, NULL, &g_cfg.mix_48k},
+    {"audio", "real_voices_64", "true",
+     "64 sounds heard at once instead of the game's 32 (past that, FMOD silences\n"
+     "# the quietest).",
+     CFG_BOOL, NULL, &g_cfg.voices64},
     CFG_ROW_GL_SELFTEST(&g_cfg.gl_selftest),
     {"debug", "profile_long_frames", "false",
      "Write where the time goes in frames over 100 ms (loading) to debug.log.\n"

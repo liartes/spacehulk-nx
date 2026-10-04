@@ -28,6 +28,7 @@ typedef struct {
   int read_buf_kb;    /* [performance] read_buffer_kb: stdio buffer of read-only files, 0 = newlib's */
   int obb_shared;     /* [performance] obb_one_handle */
   int log_buttons;    /* [debug] log_buttons */
+  int voices64;       /* [audio] real_voices_64 */
   int msaa;           /* [graphics] antialiasing: -1 the game's, else 0/2/4 samples */
 } DcrConfig;
 

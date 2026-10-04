@@ -84,12 +84,16 @@ static const Site k_voices = {0x19a4a4, {0xe594008c, 0xe59410bc, 0xeb25b961, 0xe
 /* Unity 5.6.4f1 (Disney Crossy Road: SEA): the same code, the fields moved --
  * ldr r0,[r4,#136]; ldr r1,[r4,#184]; bl setSoftwareChannels; mov r1,r0 */
 static const Site k_voices56 = {0x81ee74, {0xe5940088, 0xe59410b8, 0xeb0ce797, 0xe1a01000}};
+/* Unity 5.3.4f1 (Space Hulk): ldr r0,[r4,#132]; ldr r1,[r4,#180]; bl setSoftwareChannels; mov r1,r0 */
+static const Site k_voices53 = {0x61f65c, {0xe5940084, 0xe59410b4, 0xeb0ac771, 0xe1a01000}};
 #define REAL_VOICES 64
 static int g_voices = 32;
 /* ldr r5,[r4,#308]; mov r6,#8; ldr r0,[r4,#140]; ldr r2,[sp,#24] */
 static const Site k_rate = {0x19a428, {0xe5945134, 0xe3a06008, 0xe594008c, 0xe59d2018}};
 /* 5.6.4f1: ldr r7,[r4,#220]; mov r6,#8; ldr r0,[r4,#136]; mov r5,#0 -- r7 the rate */
 static const Site k_rate56 = {0x81edf4, {0xe59470dc, 0xe3a06008, 0xe5940088, 0xe3a05000}};
+/* 5.3.4f1 (Space Hulk): ldr r7,[r4,#192]; mov r6,#8; ldr r0,[r4,#132]; mov r5,#0 -- r7 the rate */
+static const Site k_rate53 = {0x61f5dc, {0xe59470c0, 0xe3a06008, 0xe5940084, 0xe3a05000}};
 /* the main channel (AudioSource+696), a channel's 3D position (ChannelI+360),
  * FMOD's listener 0 position (SystemI+21116; SystemI::set3DListenerAttributes:
  * `movw r7, #21116; add r5, r0, r6, lsl #4; movw r6, #21128`) */
@@ -170,6 +174,9 @@ void dcr_fmod_patch_rate(void) {
   if (unity_mod.load_virtbase && !site_ok(&k_rate, 4) && site_ok(&k_rate56, 4)) {
     site = &k_rate56;
     insn = 0xE30B7B80u; /* movw r7, #48000 */
+  } else if (unity_mod.load_virtbase && !site_ok(&k_rate, 4) && site_ok(&k_rate53, 4)) {
+    site = &k_rate53;
+    insn = 0xE30B7B80u; /* movw r7, #48000 */
   }
   if (!unity_mod.load_virtbase || !site_ok(site, 4)) {
     debugPrintf("[fmod] AudioManager::InitNormal is not as expected (libunity+0x%lx): FMOD keeps its "
@@ -188,6 +195,8 @@ void dcr_fmod_patch_voices(void) {
   const Site *site = &k_voices;
   if (unity_mod.load_virtbase && !site_ok(&k_voices, 4) && site_ok(&k_voices56, 4))
     site = &k_voices56;
+  else if (unity_mod.load_virtbase && !site_ok(&k_voices, 4) && site_ok(&k_voices53, 4))
+    site = &k_voices53;
   if (!unity_mod.load_virtbase || !site_ok(site, 4)) {
     debugPrintf("[fmod] AudioManager::InitNormal is not as expected (libunity+0x%lx): FMOD keeps the "
                 "project's real voices\n", (unsigned long)k_voices.rva);
