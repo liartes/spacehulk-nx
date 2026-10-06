@@ -1,4 +1,4 @@
-From 0e01c253270d13d95b914b60d32e2126aadede9d Mon Sep 17 00:00:00 2001
+From 7c43d47159c61085b0ffc598de38d0a5d2efeb73 Mon Sep 17 00:00:00 2001
 From: Liartes <liartes@users.noreply.github.com>
 Date: Tue, 6 Oct 2026 17:58:20 +0200
 Subject: [PATCH 1/2] st: program binaries on the Switch without a disk cache
@@ -60,7 +60,7 @@ index 3382b6539ab..c4b54f07dc2 100644
 2.43.0
 
 
-From aeb16fab3ffd5189071cd3f3f1d6ceee182db3f3 Mon Sep 17 00:00:00 2001
+From 41b901ef828249e983869a0fd94b889442494a80 Mon Sep 17 00:00:00 2001
 From: Liartes <liartes@users.noreply.github.com>
 Date: Tue, 6 Oct 2026 19:13:04 +0200
 Subject: [PATCH 2/2] libdrm_nouveau: 1021 buckets for the client's bo map

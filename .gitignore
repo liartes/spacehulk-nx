@@ -28,3 +28,7 @@ template.md
 
 # made from the player's APK (tools/make_icon.py)
 launcher/icon.jpg
+
+# Python caches
+__pycache__/
+*.pyc
