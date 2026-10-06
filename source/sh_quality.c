@@ -32,7 +32,7 @@ typedef void (*set_int_fn)(int v);
 typedef int (*get_int_fn)(void);
 
 typedef void (*set_float_fn)(float v);
-set_int_fn sh_i_set_pixelLightCount;
+set_int_fn sh_i_set_pixelLightCount, sh_i_set_backgroundLoadingPriority;
 set_float_fn sh_i_set_shadowDistance, sh_i_set_lodBias;
 set_level_fn sh_o_SetQualityLevel;
 set_int_fn sh_i_set_masterTextureLimit, sh_i_set_antiAliasing;
@@ -72,6 +72,20 @@ void sh_quality_apply(const char *why) {
   g_applied = 1;
 }
 
+/* Loading: the game loads its missions with LoadSceneAsync and never sets
+ * Application.backgroundLoadingPriority, so Unity takes in what it loaded
+ * ~10 ms a frame ("Normal"). With the reads fixed (sh_io.c) a mission load
+ * had every thread mostly waiting (hardware 2026-10-06: main thread 61-89%
+ * idle, 23 s either way): time-sliced, not I/O-bound. High gives it ~50 ms
+ * a frame. Set once at start-up ([performance] loading_priority). */
+static void apply_loading_priority(void) {
+  int p = dcr_config()->load_prio;
+  if (p >= 0 && sh_i_set_backgroundLoadingPriority) {
+    sh_i_set_backgroundLoadingPriority(p);
+    debugPrintf("[quality] Application.backgroundLoadingPriority = %d\n", p);
+  }
+}
+
 void sh_w_SetQualityLevel(int index, int apply_expensive) {
   sh_o_SetQualityLevel(index, apply_expensive);
   sh_quality_apply("SetQualityLevel");
@@ -79,6 +93,8 @@ void sh_w_SetQualityLevel(int index, int apply_expensive) {
 
 /* dcr_boot.c, after each of the first frames: as soon as the icalls work. */
 void sh_quality_boot(void) {
-  if (!g_applied && sh_i_set_masterTextureLimit)
+  if (!g_applied && sh_i_set_masterTextureLimit) {
     sh_quality_apply("start-up");
+    apply_loading_priority();
+  }
 }

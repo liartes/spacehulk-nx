@@ -15,6 +15,7 @@
 /* Space Hulk: the Disney Crossy Road features these fields drive (IL
  * patches, the C# mod, FMOD patches at that build's offsets) stay off. */
 static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1, .skip_makecurrent = 1, .pin_threads = 1, .gc_heap_mb = 96};
+static int g_load_choice = 4; /* "high" */
 static int g_lights_choice = 3, g_shadow_choice = 3, g_lod_choice = 3; /* "2", "100", "3" */
 static int g_aa_choice; /* [graphics] antialiasing: index in "game,0,2,4" */
 
@@ -53,6 +54,12 @@ static const CfgOpt k_opts[] = {
      "Detail of distant models (higher: the detailed models further away).\n"
      "# game = the quality level's (10 at the top level).",
      CFG_CHOICE, "game,1,2,3,5,10", &g_lod_choice},
+    {"performance", "loading_priority", "high",
+     "How much of each frame Unity spends taking in what it loaded in the\n"
+     "# background (Application.backgroundLoadingPriority): high loads missions\n"
+     "# faster, the loading screen animates less smoothly. game = the game's\n"
+     "# (normal).",
+     CFG_CHOICE, "game,low,belownormal,normal,high", &g_load_choice},
     {"performance", "pin_threads", "true",
      "The render thread on a core of its own, the main thread on another.",
      CFG_BOOL, NULL, &g_cfg.pin_threads},
@@ -114,6 +121,8 @@ static void apply(void) {
   g_cfg.res_h = rt->res_h;
   static const int lights[] = {-1, 0, 1, 2, 3, 4}, shadow[] = {-1, 30, 60, 100, 150, 300},
                    lod[] = {-1, 10, 20, 30, 50, 100};
+  static const int prio[] = {-1, 0, 1, 2, 4}; /* UnityEngine.ThreadPriority */
+  g_cfg.load_prio = prio[g_load_choice];
   g_cfg.pixel_lights = lights[g_lights_choice];
   g_cfg.shadow_dist = shadow[g_shadow_choice];
   g_cfg.lod_bias10 = lod[g_lod_choice];
