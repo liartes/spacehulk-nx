@@ -11,7 +11,8 @@
  *   800- 820  the rewritten copy checked
  *   820- 940  libmain / libunity / libmono unpacked (by bytes)
  *   940- 960  the Java class list
- *   960- 985  the OBB looked for, and made Switch-sized (once: sh_obbstrip.c)
+ *   960- 985  the OBB looked for, and made Switch-sized (once: sh_obbstrip.c;
+ *             that step's bar runs 0-100% of its own)
  *   985- 990  its zip headers indexed (once)
  *        1000 the game starts
  *
@@ -47,13 +48,11 @@ static const char *const k_libs[] = {"libmain.so", "libunity.so", "libmono.so"};
  * slower). [setup] optimize_obb. */
 void dcr_boost_hold(int on); /* dcr_boost.c */
 
-typedef struct {
-  int p0, p1;
-} StripBar;
-
+/* The bar runs 0-100% for this step alone: it is minutes of the first start,
+ * where the setup's own share (960-985 permille) barely moved (2026-10-06). */
 static void strip_progress(uint64_t done, uint64_t total, void *ctx) {
-  const StripBar *b = ctx;
-  rt_setup_progress_in("Optimizing the OBB for the Switch (once, a few minutes)", b->p0, b->p1, done, total);
+  (void)ctx;
+  rt_setup_progress_in("Optimizing the OBB for the Switch (once, a few minutes)", 0, 1000, done, total);
 }
 
 static void obb_optimize(const char *obb, long size, int p0, int p1) {
@@ -78,9 +77,8 @@ static void obb_optimize(const char *obb, long size, int p0, int p1) {
   debugPrintf("[setup] optimizing the OBB for the Switch (its textures from their second mip)...\n");
   u64 t0 = armGetSystemTick();
   dcr_boost_hold(1);
-  StripBar bar = {p0, p1};
   ShObbStripStats st;
-  int r = sh_obbstrip_run(obb, part, strip_progress, &bar, &st);
+  int r = sh_obbstrip_run(obb, part, strip_progress, NULL, &st);
   dcr_boost_hold(0);
   long out = rt_file_size(part);
   if (r != 1 || out <= 0 || sh_obbstrip_is_done(part) != 1) {

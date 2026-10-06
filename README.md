@@ -49,6 +49,9 @@ APK and its expansion file (OBB).
 
 ## Installing
 
+Download the latest release from
+[github.com/liartes/spacehulk-nx/releases](https://github.com/liartes/spacehulk-nx/releases).
+
 You need a Switch with **Atmosphère** and **sphaira**, and your own copy of
 **Space Hulk for Android** (`com.hoplite.spacehulk`, versionCode 7, the
 armeabi-v7a build signed by Hoplite Research):
