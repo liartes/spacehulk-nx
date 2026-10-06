@@ -10,8 +10,12 @@ picture with masterTextureLimit = 0, ~75% less texture data to read.
 
     python3 tools/obb/strip_mips.py main.7.com.hoplite.spacehulk.obb out.obb [--only level6]
 
-Textures without mipmaps (the UI's) are left alone, as masterTextureLimit
-leaves them. Every other entry is copied as it is. The output's entries are
+Textures without mipmaps (most of the UI's) are left alone, as
+masterTextureLimit leaves them -- and so are the GUI atlases that HAVE
+mipmaps ("Menu GUI", 1024x2048, 12 mips): NGUI places its sprites in pixels
+of texture.width / height, which masterTextureLimit leaves at the full size
+but a stripped texture halves -- the menus' selection frames came out as
+solid green blocks (hardware 2026-10-06). Every other entry is copied as it is. The output's entries are
 deflated like the input's. An entry "assets/switch-mips-stripped" marks the
 result, for the port. Needs UnityPy.
 """
@@ -39,8 +43,15 @@ def level_bytes(fmt, w, h):
     return None
 
 
+# NGUI atlases and other GUI textures: sprites addressed in pixels (see above)
+KEEP = re.compile(r"GUI")
+
+
 def strip(tree, stats):
     w, h, mips, fmt = tree["m_Width"], tree["m_Height"], tree["m_MipCount"], tree["m_TextureFormat"]
+    if KEEP.search(tree.get("m_Name", "")):
+        stats["GUI textures kept"] += 1
+        return False
     if mips <= 1 or w < 8 or h < 8 or tree.get("m_ImageCount", 1) != 1:
         return False
     top = level_bytes(fmt, w, h)
