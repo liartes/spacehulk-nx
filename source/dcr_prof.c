@@ -347,6 +347,65 @@ static void report_thread(int ti, uint32_t ticks) {
     debugPrintf("%s\n", line);
 }
 
+/* Continuous mode: each window's running samples, per busy thread, to
+ * <root>/prof_self.txt -- every pc (to the instruction) with its count, the
+ * 400 commonest, as module+offset or the C# method. The "incl" lines above
+ * come from scanning stacks for anything that looks like code, which keeps
+ * stale return addresses (b_eglMakeCurrent showed in half the render
+ * thread's stacks while the engine made no such call, hardware 2026-10-06);
+ * the self samples are exact, and tools/prof_self.py sums them by function
+ * offline with the program's symbols. */
+#define DUMP_TOP 400
+const char *dcr_game_root(void);
+static uint32_t g_window_no;
+
+static void dump_self(uint32_t ticks, uint64_t ms, uint64_t frames) {
+  char path[300];
+  snprintf(path, sizeof path, "%s/prof_self.txt", dcr_game_root());
+  FILE *f = fopen(path, "a");
+  if (!f)
+    return;
+  fprintf(f, "W %lu %llu ms %llu frames %lu ticks\n", (unsigned long)++g_window_no, (unsigned long long)ms,
+          (unsigned long long)frames, (unsigned long)ticks);
+  static Ent tab[4096];
+  for (int ti = 0; ti < g_nseen; ti++) {
+    const Seen *e = &g_seen[ti];
+    if ((e->n[ST_RUN] + e->n[ST_IO]) * 20 < ticks)
+      continue; /* under 5% busy */
+    memset(tab, 0, sizeof tab);
+    uint32_t n = g_n;
+    for (uint32_t i = 0; i < n; i++)
+      if (g_s[i].thread == ti) {
+        uint32_t key = g_s[i].pc & ~1u;
+        for (uint32_t h = (key * 2654435761u) % 4096, k = 0; k < 4096; k++, h = (h + 1) % 4096) {
+          if (tab[h].count && tab[h].key != key)
+            continue;
+          tab[h].key = key;
+          tab[h].count++;
+          break;
+        }
+      }
+    fprintf(f, "T %s %u %u %u\n", e->main ? "UnityMain" : (e->name[0] ? e->name : "?"), e->n[ST_RUN],
+            e->n[ST_IO], e->n[ST_WAIT]);
+    for (int k = 0; k < DUMP_TOP; k++) {
+      int best = -1;
+      for (int i = 0; i < 4096; i++)
+        if (tab[i].count && (best < 0 || tab[i].count > tab[best].count))
+          best = i;
+      if (best < 0)
+        break;
+      char a[96];
+      if (jit_contains((const void *)(uintptr_t)tab[best].key))
+        snprintf(a, sizeof a, "JIT:%s", jit_name(tab[best].key));
+      else
+        dcr_addr_name(tab[best].key, a, sizeof a);
+      fprintf(f, "%u %s\n", tab[best].count, a);
+      tab[best].count = 0;
+    }
+  }
+  fclose(f);
+}
+
 void dcr_prof_frame_end(uint64_t frame) {
   if (!g_s)
     return;
@@ -361,6 +420,16 @@ void dcr_prof_frame_end(uint64_t frame) {
     if (ms < WINDOW_MS && g_n < MAX_SAMPLES)
       return;
     g_window_start = 0; /* the next frame_begin starts a new window */
+    {
+      uint32_t t = 0;
+      for (int i = 0; i < g_nseen; i++) {
+        uint32_t x = g_seen[i].n[0] + g_seen[i].n[1] + g_seen[i].n[2];
+        if (x > t)
+          t = x;
+      }
+      if (t >= 5)
+        dump_self(t, ms, g_window_frames);
+    }
     debugPrintf("[prof] window: %llu frames in %llu ms (%.1f fps, %.1f ms a frame)%s\n",
                 (unsigned long long)g_window_frames, (unsigned long long)ms,
                 (double)g_window_frames * 1000.0 / (double)ms, (double)ms / (double)g_window_frames,
