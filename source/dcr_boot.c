@@ -241,6 +241,20 @@ int dcr_boot_run(void) {
     dcr_boost_frame_begin();
     dcr_prof_frame_begin();
     jboolean alive = U.render(g_jni_env, g_thiz);
+    /* Handheld.PlayFullScreenMovie, as the Android VideoView does it: the
+     * player paused and its surface taken away, the movie, then the surface
+     * back and the player resumed (sh_video.c) */
+    int sh_video_pending(void);
+    if (sh_video_pending()) {
+      void sh_video_play_pending(void);
+      debugPrintf("[video] pausing the player and releasing its surface\n");
+      if (U.pause) U.pause(g_jni_env, g_thiz);
+      U.recreateGfxState(g_jni_env, g_thiz, 0, NULL);
+      sh_video_play_pending();
+      U.recreateGfxState(g_jni_env, g_thiz, 0, g_surface);
+      if (U.resume) U.resume(g_jni_env, g_thiz);
+      debugPrintf("[video] the player has its surface back\n");
+    }
     void sh_quality_boot(void);
     sh_quality_boot(); /* the texture limit, as soon as QualitySettings answers (sh_quality.c) */
     void sh_sched_frame(uint64_t frame);

@@ -189,6 +189,10 @@ static Thread g_thread;
 static volatile int g_run;
 static JObj *g_device;
 
+/* A source that replaces FMOD's mix while it is set (sh_video.c: an intro
+ * movie's sound, the player being paused): frames of stereo s16 at rate. */
+int (*dcr_audio_source)(int16_t *out, int frames, int rate);
+
 static void pump(void *arg) {
   fn_getinfo getinfo = (fn_getinfo)jni_native("org/fmod/FMODAudioDevice", "fmodGetInfo");
   fn_process process = (fn_process)jni_native("org/fmod/FMODAudioDevice", "fmodProcess");
@@ -210,6 +214,13 @@ static void pump(void *arg) {
   u64 mix_ticks = 0, mix_max = 0; /* FMOD's own mixing time, per report */
 
   while (g_run) {
+    int (*src)(int16_t *, int, int) = dcr_audio_source;
+    if (src) { /* a movie's sound: audout paces it as it does FMOD's */
+      static int16_t vbuf[FRAMES_PER_BUF * 2];
+      src(vbuf, FRAMES_PER_BUF, (int)g_out_rate);
+      submit(vbuf);
+      continue;
+    }
     if (getinfo(g_jni_env, g_device, 3) != 1) {
       svcSleepThread(10000000ll);
       continue;

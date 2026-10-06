@@ -11,7 +11,17 @@
 #---------------------------------------------------------------------------------
 TARGET               := spacehulk_nx
 PORT_NPDM_PROGRAM_ID := 0x0100000000005348
+# FFmpeg (the intro movies, sh_video.c): ffmpeg32 with the H.264 decoder
+# (FFMPEG_COMPONENTS="--enable-demuxer=mov --enable-decoder=h264
+# --enable-parser=h264 --enable-decoder=aac --enable-parser=aac"), its lib/
+# and include/ in portlibs32/
+PORT_LIBS  := -L$(CURDIR)/portlibs32/lib -lavformat -lavcodec -lavutil
 include runtime/runtime.mk
+
+# FFmpeg's headers want int-sized enums (devkitARM's default is short)
+$(BUILD)/sh_video.o: $(SOURCES)/sh_video.c $(RENDERER_STAMP) | $(BUILD)
+	@echo $(notdir $<)
+	@$(CC) -MMD -MP $(CFLAGS) -fno-short-enums -c $< -o $@
 
 # the port's C# (mod/build_mod.sh), carried inside the program
 $(BUILD)/mod_blob.o: mod/dcrmod.dll

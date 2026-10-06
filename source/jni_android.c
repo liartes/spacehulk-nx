@@ -262,6 +262,14 @@ H(up_reportError) {
   debugPrintf("[unity] reportError: %s: %s\n", S(0), S(1));
   return jv_none();
 }
+/* Handheld.PlayFullScreenMovie: (path, colour, control mode, scaling, isURL,
+ * offset, length); played from the frame loop (sh_video.c, dcr_boot.c) */
+void sh_video_request(const char *android_path, int is_url, int64_t off, int64_t len);
+H(up_showVideoPlayer) {
+  sh_video_request(a[0].l ? jni_utf(a[0].l) : NULL, a[4].z, (int64_t)a[5].i, (int64_t)a[6].i);
+  return jni_h_void(self, a, m);
+}
+
 H(up_quit) {
   g_dcr_quit_requested = 1;
   return jv_none();
@@ -1216,6 +1224,7 @@ const JMethodDef jni_method_defs[] = {
     {C_PLAYER, "getView", NULL, up_getView},
     {C_PLAYER, "reportError", NULL, up_reportError},
     {C_PLAYER, "quit", NULL, up_quit},
+    {C_PLAYER, "showVideoPlayer", NULL, up_showVideoPlayer},
     {C_PLAYER, "kill", NULL, up_quit},
     {C_PLAYER, "isFinishing", NULL, ret_false},
     {C_PLAYER, "executeGLThreadJobs", NULL, noop},
