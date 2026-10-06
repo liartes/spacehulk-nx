@@ -291,24 +291,66 @@ int sh_obbstrip_is_done(const char *obb) {
   return done;
 }
 
+/* miniz's own file I/O goes through stdio with the C library's buffer -- 1
+ * KB with libnx's fsdev, each refill and each flush a request to the SD
+ * card: the first console run took 682 s, ~2 MB/s (2026-10-06). The reads
+ * and writes come through these instead, on FILEs with big buffers: the
+ * entries are taken in file order and the output is written in order (but
+ * for each local header, patched once its data is in). */
+#define READ_BUF (256u * 1024u)
+#define WRITE_BUF (1024u * 1024u)
+
+static size_t io_read(void *opaque, mz_uint64 ofs, void *buf, size_t n) {
+  FILE *f = opaque;
+  if ((mz_uint64)ftello(f) != ofs && fseeko(f, (off_t)ofs, SEEK_SET) != 0)
+    return 0;
+  return fread(buf, 1, n, f);
+}
+
+static size_t io_write(void *opaque, mz_uint64 ofs, const void *buf, size_t n) {
+  FILE *f = opaque;
+  if ((mz_uint64)ftello(f) != ofs && fseeko(f, (off_t)ofs, SEEK_SET) != 0)
+    return 0;
+  return fwrite(buf, 1, n, f);
+}
+
 int sh_obbstrip_run(const char *obb, const char *out, ShObbStripProgress progress, void *ctx,
                     ShObbStripStats *st) {
   memset(st, 0, sizeof *st);
   mz_zip_archive zr, zw;
   memset(&zr, 0, sizeof zr);
   memset(&zw, 0, sizeof zw);
-  if (!mz_zip_reader_init_file(&zr, obb, 0)) {
-    LOG("[obb] %s: not a zip miniz reads\n", obb);
+  FILE *fr = fopen(obb, "rb");
+  if (!fr) {
+    LOG("[obb] %s: cannot open it\n", obb);
     return -1;
   }
+  setvbuf(fr, NULL, _IOFBF, READ_BUF);
+  fseeko(fr, 0, SEEK_END);
+  const mz_uint64 in_size = (mz_uint64)ftello(fr);
+  zr.m_pRead = io_read;
+  zr.m_pIO_opaque = fr;
+  if (!mz_zip_reader_init(&zr, in_size, 0)) {
+    LOG("[obb] %s: not a zip miniz reads\n", obb);
+    fclose(fr);
+    return -1;
+  }
+  FILE *fw = fopen(out, "wb");
+  if (fw)
+    setvbuf(fw, NULL, _IOFBF, WRITE_BUF);
+  zw.m_pWrite = io_write;
+  zw.m_pIO_opaque = fw;
   const mz_uint n = mz_zip_reader_get_num_files(&zr);
   uint8_t *done = calloc(n, 1);
   int *order = malloc(sizeof(int) * n);
-  if (!done || !order || !mz_zip_writer_init_file(&zw, out, 0)) {
+  if (!done || !order || !fw || !mz_zip_writer_init(&zw, 0)) {
     LOG("[obb] cannot write %s\n", out);
     free(done);
     free(order);
     mz_zip_reader_end(&zr);
+    fclose(fr);
+    if (fw)
+      fclose(fw);
     return -1;
   }
   uint64_t total = 0, sofar = 0;
@@ -411,6 +453,9 @@ int sh_obbstrip_run(const char *obb, const char *out, ShObbStripProgress progres
     ok = mz_zip_writer_finalize_archive(&zw);
   mz_zip_writer_end(&zw);
   mz_zip_reader_end(&zr);
+  fclose(fr);
+  if (fclose(fw) != 0)
+    ok = 0;
   free(done);
   free(order);
   if (!ok)
