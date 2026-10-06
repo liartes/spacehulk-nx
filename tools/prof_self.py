@@ -89,10 +89,11 @@ def main():
         if not (lo <= w <= hi):
             continue
         if line.startswith("T "):
-            f = line.split()
-            thread = f[1]
-            run[thread] += int(f[2]) + int(f[3])
-            totals[thread] += int(f[2]) + int(f[3]) + int(f[4])
+            f = line.split()  # T <name, may hold spaces> <running> <io> <waiting>
+            thread = " ".join(f[1:-3])
+            r, io, wt = int(f[-3]), int(f[-2]), int(f[-1])
+            run[thread] += r + io
+            totals[thread] += r + io + wt
             continue
         m = re.match(r"(\d+) (.*)$", line)
         if m and thread:

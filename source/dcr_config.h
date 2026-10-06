@@ -36,6 +36,7 @@ typedef struct {
   int shadow_dist;    /* [graphics] shadow_distance: -1 = the level's */
   int lod_bias10;     /* [graphics] lod_bias x10: -1 = the level's */
   int load_prio;      /* [performance] loading_priority: ThreadPriority, -1 = the game's */
+  int gl_no_error;    /* [graphics] gl_no_error */
   int msaa;           /* [graphics] antialiasing: -1 the game's, else 0/2/4 samples */
 } DcrConfig;
 

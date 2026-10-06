@@ -8,6 +8,7 @@
  */
 #include <malloc.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <switch.h>
 
@@ -117,6 +118,16 @@ int port_load(const char *apk) {
   /* libmain/libunity/libmono and classes.txt, from game.apk when they are
    * missing or it has changed; the OBB check (dcr_setup_plan.c) */
   dcr_setup_from_apk(apk);
+  /* Mesa's KHR_no_error, for every context the engine makes: per-function
+   * self samples of a mission (hardware 2026-10-06, prof_self.txt) had the
+   * render thread 49% in Mesa, its uniform and draw validation among the
+   * top (validate_uniform_parameters, _mesa_propagate_uniforms_..., state
+   * validation), with no GL error in whole sessions. Mesa reads it with the
+   * C library's getenv (newlib's environment, not the game's). */
+  if (dcr_config()->gl_no_error) {
+    setenv("MESA_NO_ERROR", "1", 1);
+    debugPrintf("[gl] MESA_NO_ERROR=1 (KHR_no_error: no GL error checks)\n");
+  }
   /* Mono's Boehm GC reads its starting heap size at GC_init: a bigger one
    * collects less often ([performance] gc_initial_heap_mb) */
   if (dcr_config()->gc_heap_mb > 0) {
