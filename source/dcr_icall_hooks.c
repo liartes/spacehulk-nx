@@ -248,6 +248,7 @@ static void w_listener_pause(int paused) {
 
 /* sh_quality.c: the graphics settings held against the game's own */
 extern void *sh_i_GetKeyInt; /* sh_padprobe.c */
+extern void *sh_i_set_pixelLightCount, *sh_i_set_shadowDistance, *sh_i_set_lodBias; /* sh_quality.c */
 extern void *sh_o_SetQualityLevel, *sh_i_set_masterTextureLimit, *sh_i_set_antiAliasing, *sh_i_GetQualityLevel;
 void sh_w_SetQualityLevel(int index, int apply_expensive);
 
@@ -267,6 +268,9 @@ static const struct {
     {"UnityEngine.AudioListener::set_pause", (void *)w_listener_pause, (void **)&o_listener_pause, 1},
     {"UnityEngine.Input::GetKeyInt", NULL, (void **)&sh_i_GetKeyInt, 0},
     {"UnityEngine.QualitySettings::SetQualityLevel", (void *)sh_w_SetQualityLevel, (void **)&sh_o_SetQualityLevel, 0},
+    {"UnityEngine.QualitySettings::set_pixelLightCount", NULL, (void **)&sh_i_set_pixelLightCount, 0},
+    {"UnityEngine.QualitySettings::set_shadowDistance", NULL, (void **)&sh_i_set_shadowDistance, 0},
+    {"UnityEngine.QualitySettings::set_lodBias", NULL, (void **)&sh_i_set_lodBias, 0},
     {"UnityEngine.QualitySettings::set_masterTextureLimit", NULL, (void **)&sh_i_set_masterTextureLimit, 0},
     {"UnityEngine.QualitySettings::set_antiAliasing", NULL, (void **)&sh_i_set_antiAliasing, 0},
     {"UnityEngine.QualitySettings::GetQualityLevel", NULL, (void **)&sh_i_GetQualityLevel, 0},

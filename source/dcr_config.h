@@ -30,6 +30,11 @@ typedef struct {
   int log_buttons;    /* [debug] log_buttons */
   int voices64;       /* [audio] real_voices_64 */
   int skip_makecurrent; /* [graphics] skip_redundant_makecurrent */
+  int pin_threads;    /* [performance] pin_threads */
+  int gc_heap_mb;     /* [performance] gc_initial_heap_mb: 0 = Mono's own */
+  int pixel_lights;   /* [graphics] pixel_lights: -1 = the level's */
+  int shadow_dist;    /* [graphics] shadow_distance: -1 = the level's */
+  int lod_bias10;     /* [graphics] lod_bias x10: -1 = the level's */
   int msaa;           /* [graphics] antialiasing: -1 the game's, else 0/2/4 samples */
 } DcrConfig;
 

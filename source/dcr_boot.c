@@ -243,6 +243,8 @@ int dcr_boot_run(void) {
     jboolean alive = U.render(g_jni_env, g_thiz);
     void sh_quality_boot(void);
     sh_quality_boot(); /* the texture limit, as soon as QualitySettings answers (sh_quality.c) */
+    void sh_sched_frame(uint64_t frame);
+    sh_sched_frame(frames + 1); /* [performance] pin_threads (sh_sched.c) */
     void sh_padprobe_frame(void);
     sh_padprobe_frame(); /* [debug] log_buttons (sh_padprobe.c) */
     void dcr_mod_frame(uint64_t frame);

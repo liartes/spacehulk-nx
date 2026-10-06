@@ -31,6 +31,9 @@ typedef void (*set_level_fn)(int index, int apply_expensive);
 typedef void (*set_int_fn)(int v);
 typedef int (*get_int_fn)(void);
 
+typedef void (*set_float_fn)(float v);
+set_int_fn sh_i_set_pixelLightCount;
+set_float_fn sh_i_set_shadowDistance, sh_i_set_lodBias;
 set_level_fn sh_o_SetQualityLevel;
 set_int_fn sh_i_set_masterTextureLimit, sh_i_set_antiAliasing;
 get_int_fn sh_i_GetQualityLevel;
@@ -52,6 +55,16 @@ void sh_quality_apply(const char *why) {
     sh_i_set_masterTextureLimit(tex_limit());
   if (sh_i_set_antiAliasing && c->msaa >= 0)
     sh_i_set_antiAliasing(c->msaa);
+  /* the top level's per-pixel lights (4: each one draws what it touches
+   * again), shadow distance (300) and LOD bias (10), for the render thread */
+  if (sh_i_set_pixelLightCount && c->pixel_lights >= 0)
+    sh_i_set_pixelLightCount(c->pixel_lights);
+  if (sh_i_set_shadowDistance && c->shadow_dist >= 0)
+    sh_i_set_shadowDistance((float)c->shadow_dist);
+  if (sh_i_set_lodBias && c->lod_bias10 >= 0)
+    sh_i_set_lodBias((float)c->lod_bias10 / 10.0f);
+  debugPrintf("[quality] pixel lights %d, shadow distance %d, LOD bias x10 %d (-1: the level's)\n",
+              c->pixel_lights, c->shadow_dist, c->lod_bias10);
   debugPrintf("[quality] %s: level %d, textures 1/%d (masterTextureLimit %d%s), MSAA %s%d\n", why,
               sh_i_GetQualityLevel ? sh_i_GetQualityLevel() : -1, 1 << c->tex_limit, tex_limit(),
               sh_obbindex_mips_stripped() ? ", the OBB's mips already stripped" : "",

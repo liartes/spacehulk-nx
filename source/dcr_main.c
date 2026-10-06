@@ -117,6 +117,15 @@ int port_load(const char *apk) {
   /* libmain/libunity/libmono and classes.txt, from game.apk when they are
    * missing or it has changed; the OBB check (dcr_setup_plan.c) */
   dcr_setup_from_apk(apk);
+  /* Mono's Boehm GC reads its starting heap size at GC_init: a bigger one
+   * collects less often ([performance] gc_initial_heap_mb) */
+  if (dcr_config()->gc_heap_mb > 0) {
+    char v[16];
+    int b_setenv(const char *name, const char *value, int overwrite);
+    snprintf(v, sizeof v, "%u", (unsigned)dcr_config()->gc_heap_mb << 20);
+    b_setenv("GC_INITIAL_HEAP_SIZE", v, 1);
+    debugPrintf("[mono] GC_INITIAL_HEAP_SIZE=%s (%d MB)\n", v, dcr_config()->gc_heap_mb);
+  }
   if (load_module(&main_mod, DCR_LIB_MAIN) < 0 ||
       load_module(&unity_mod, DCR_LIB_UNITY) < 0 ||
       load_module(&mono_mod, DCR_LIB_MONO) < 0)

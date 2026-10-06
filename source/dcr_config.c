@@ -14,7 +14,8 @@
 
 /* Space Hulk: the Disney Crossy Road features these fields drive (IL
  * patches, the C# mod, FMOD patches at that build's offsets) stay off. */
-static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1, .skip_makecurrent = 1};
+static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1, .skip_makecurrent = 1, .pin_threads = 1, .gc_heap_mb = 96};
+static int g_lights_choice = 3, g_shadow_choice = 3, g_lod_choice = 3; /* "2", "100", "3" */
 static int g_aa_choice; /* [graphics] antialiasing: index in "game,0,2,4" */
 
 const DcrConfig *dcr_config(void) { return &g_cfg; }
@@ -41,6 +42,24 @@ static const CfgOpt k_opts[] = {
      "Skip the engine's eglMakeCurrent calls that change nothing (its render\n"
      "# thread spent much of its time in them).",
      CFG_BOOL, NULL, &g_cfg.skip_makecurrent},
+    {"graphics", "pixel_lights", "2",
+     "Dynamic lights drawn per pixel: each one draws every object it touches\n"
+     "# again. game = the quality level's (4 at the top level).",
+     CFG_CHOICE, "game,0,1,2,3,4", &g_lights_choice},
+    {"graphics", "shadow_distance", "100",
+     "How far shadows are drawn. game = the quality level's (300 at the top level).",
+     CFG_CHOICE, "game,30,60,100,150,300", &g_shadow_choice},
+    {"graphics", "lod_bias", "3",
+     "Detail of distant models (higher: the detailed models further away).\n"
+     "# game = the quality level's (10 at the top level).",
+     CFG_CHOICE, "game,1,2,3,5,10", &g_lod_choice},
+    {"performance", "pin_threads", "true",
+     "The render thread on a core of its own, the main thread on another.",
+     CFG_BOOL, NULL, &g_cfg.pin_threads},
+    {"performance", "gc_initial_heap_mb", "96",
+     "Mono's garbage collector starts with this much heap (MB), so it collects\n"
+     "# less often (fewer stalls). 0: Mono's own.",
+     CFG_INT, "0,32,64,96,128,192", &g_cfg.gc_heap_mb},
     CFG_ROW_BOOST("CPU at 1785 MHz while the game starts and inside loading frames (those\n"
                   "# over 50 ms), normal otherwise.",
                   &g_cfg.boost),
@@ -93,6 +112,11 @@ static void apply(void) {
   const RtConfig *rt = rt_config();
   g_cfg.res_w = rt->res_w;
   g_cfg.res_h = rt->res_h;
+  static const int lights[] = {-1, 0, 1, 2, 3, 4}, shadow[] = {-1, 30, 60, 100, 150, 300},
+                   lod[] = {-1, 10, 20, 30, 50, 100};
+  g_cfg.pixel_lights = lights[g_lights_choice];
+  g_cfg.shadow_dist = shadow[g_shadow_choice];
+  g_cfg.lod_bias10 = lod[g_lod_choice];
   g_cfg.msaa = g_aa_choice == 0 ? -1 : g_aa_choice == 1 ? 0 : g_aa_choice == 2 ? 2 : 4;
   int docked = appletGetOperationMode() == AppletOperationMode_Console;
   debugPrintf("[config] %dx%d (%s, %s), textures 1/%d, MSAA %s, CPU boost %s, profiler %s, sound log %s\n",
