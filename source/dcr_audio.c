@@ -325,3 +325,49 @@ void dcr_audio_fmod_stop(void) {
 }
 
 int dcr_audio_fmod_running(void) { return g_run; }
+
+/* A source of its own while FMOD is stopped: Unity stops FMOD's device when
+ * the player pauses -- exactly when a movie plays (sh_video.c) -- and the
+ * pump above goes with it. This thread plays dcr_audio_source until
+ * dcr_audio_source_end(); if FMOD's pump is running, that one plays it. */
+static Thread g_src_thread;
+static volatile int g_src_run;
+
+static void src_pump(void *arg) {
+  (void)arg;
+  static int16_t b[FRAMES_PER_BUF * 2];
+  while (g_src_run) {
+    int (*s)(int16_t *, int, int) = dcr_audio_source;
+    if (!s) {
+      svcSleepThread(5000000ll);
+      continue;
+    }
+    s(b, FRAMES_PER_BUF, (int)g_out_rate);
+    submit(b);
+  }
+}
+
+int dcr_audio_source_begin(int (*fn)(int16_t *out, int frames, int rate)) {
+  dcr_audio_source = fn;
+  if (g_run || g_src_run)
+    return 0;
+  if (dcr_audio_open() != 0)
+    return -1;
+  g_src_run = 1;
+  if (R_FAILED(threadCreate(&g_src_thread, src_pump, NULL, NULL, 0x8000, 0x2A, -2)) ||
+      R_FAILED(threadStart(&g_src_thread))) {
+    g_src_run = 0;
+    debugPrintf("[audio] no thread for the movie's sound\n");
+    return -1;
+  }
+  return 0;
+}
+
+void dcr_audio_source_end(void) {
+  dcr_audio_source = NULL;
+  if (g_src_run) {
+    g_src_run = 0;
+    threadWaitForExit(&g_src_thread);
+    threadClose(&g_src_thread);
+  }
+}

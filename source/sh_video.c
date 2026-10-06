@@ -39,7 +39,8 @@
 
 void dcr_window_size(int *w, int *h);
 void dcr_boost_hold(int on);                                  /* dcr_boost.c */
-extern int (*dcr_audio_source)(int16_t *out, int frames, int rate); /* dcr_audio.c */
+int dcr_audio_source_begin(int (*fn)(int16_t *out, int frames, int rate)); /* dcr_audio.c */
+void dcr_audio_source_end(void);
 
 /* FFmpeg 7.1's h2645_sei.c resets the AOM film grain sets unconditionally,
  * but aom_film_grain.o is only built with HEVC, which ffmpeg32 leaves out
@@ -236,13 +237,17 @@ static int audio_source(int16_t *out, int frames, int rate) {
     return 1;
   }
   mutexLock(&V.lock);
+  /* the position moves on whether or not the sound there is decoded yet
+   * (silence then): it is the clock the pictures follow, and must not stall
+   * behind a decoder that is busy with pictures */
   const double step = (double)V.arate / (double)rate;
   const double have = (double)V.pcm_frames;
-  for (int i = 0; i < frames && V.apos + 1 < have; i++) {
+  for (int i = 0; i < frames; i++) {
     const int i0 = (int)V.apos;
     const double t = V.apos - i0;
-    for (int c = 0; c < 2; c++)
-      out[i * 2 + c] = (int16_t)(V.pcm[i0 * 2 + c] * (1 - t) + V.pcm[(i0 + 1) * 2 + c] * t);
+    if (V.apos + 1 < have)
+      for (int c = 0; c < 2; c++)
+        out[i * 2 + c] = (int16_t)(V.pcm[i0 * 2 + c] * (1 - t) + V.pcm[(i0 + 1) * 2 + c] * t);
     V.apos += step;
   }
   mutexUnlock(&V.lock);
@@ -294,7 +299,7 @@ static void close_all(void) {
     threadClose(&V.thread);
     V.thread_on = 0;
   }
-  dcr_audio_source = NULL;
+  dcr_audio_source_end();
   V.audio_go = 0;
   avcodec_free_context(&V.vdec);
   avcodec_free_context(&V.adec);
@@ -466,7 +471,8 @@ static int play(void) {
   }
   V.thread_on = 1;
   dcr_boost_hold(1);
-  dcr_audio_source = audio_source;
+  if (dcr_audio_source_begin(audio_source) != 0)
+    debugPrintf("[video] no sound output: the pictures follow the wall clock\n");
   PadState pad;
   padInitializeAny(&pad);
 
@@ -485,7 +491,7 @@ static int play(void) {
     double now;
     if (clock0 < 0)
       now = -1;
-    else if (V.adec)
+    else if (V.adec && V.played)
       now = clock0 + (double)V.played / 48000.0;
     else
       now = clock0 + (double)armTicksToNs(armGetSystemTick() - wall0) / 1e9;
@@ -522,6 +528,7 @@ static int play(void) {
     } else {
       if (V.eof && !left && (!V.adec || V.apos + 1 >= (double)V.pcm_frames))
         break;
+      /* the clock moved on and nothing new is decoded: keep it moving */
       svcSleepThread(2000000ll);
     }
     if (clock0 < 0 && armTicksToNs(armGetSystemTick() - t_start) > 10000000000ull) {
@@ -532,7 +539,7 @@ static int play(void) {
   debugPrintf("[video] %s: %d pictures shown, %d passed over (late), %.1f s\n", why, shown, passed,
               (double)armTicksToNs(armGetSystemTick() - t_start) / 1e9);
   (void)skipped;
-  dcr_audio_source = NULL;
+  dcr_audio_source_end();
   dcr_boost_hold(0);
   close_all();
   framebufferClose(&fb);
