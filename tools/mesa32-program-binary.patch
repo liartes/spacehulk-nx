@@ -1,0 +1,61 @@
+From 0e01c253270d13d95b914b60d32e2126aadede9d Mon Sep 17 00:00:00 2001
+From: Liartes <liartes@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 17:58:20 +0200
+Subject: [PATCH] st: program binaries on the Switch without a disk cache
+
+---
+ src/mesa/state_tracker/st_extensions.c   |  7 +++++++
+ src/mesa/state_tracker/st_shader_cache.c | 11 +++++++++++
+ 2 files changed, 18 insertions(+)
+
+diff --git a/src/mesa/state_tracker/st_extensions.c b/src/mesa/state_tracker/st_extensions.c
+index 902c0d3ee43..9916e8bb29a 100644
+--- a/src/mesa/state_tracker/st_extensions.c
++++ b/src/mesa/state_tracker/st_extensions.c
+@@ -466,6 +466,13 @@ void st_init_limits(struct pipe_screen *screen,
+    /* GL_ARB_get_program_binary */
+    if (screen->get_disk_shader_cache && screen->get_disk_shader_cache(screen))
+       c->NumProgramBinaryFormats = 1;
++#ifdef __SWITCH__
++   /* Program binaries are serialized in memory (st_shader_cache.c); only the
++    * disk cache is missing here. Offering the format lets an application
++    * keep its own cache (Unity's UnityShaderCache), so a second start skips
++    * the GLSL compile and link. */
++   c->NumProgramBinaryFormats = 1;
++#endif
+ 
+    c->MaxAtomicBufferBindings =
+       c->Program[MESA_SHADER_FRAGMENT].MaxAtomicBuffers;
+diff --git a/src/mesa/state_tracker/st_shader_cache.c b/src/mesa/state_tracker/st_shader_cache.c
+index 3382b6539ab..c4b54f07dc2 100644
+--- a/src/mesa/state_tracker/st_shader_cache.c
++++ b/src/mesa/state_tracker/st_shader_cache.c
+@@ -22,6 +22,7 @@
+  */
+ 
+ #include <stdio.h>
++#include "util/mesa-sha1.h"
+ #include "st_debug.h"
+ #include "st_program.h"
+ #include "st_shader_cache.h"
+@@ -37,7 +38,17 @@
+ void
+ st_get_program_binary_driver_sha1(struct gl_context *ctx, uint8_t *sha1)
+ {
++#ifdef __SWITCH__
++   /* No disk cache on the Switch (disk_cache_compute_key is a no-op without
++    * ENABLE_SHADER_CACHE, leaving sha1 unset), but program binaries are
++    * offered anyway (st_extensions.c): a binary is tied to this build of the
++    * driver by its compile date and time, so one from another build is
++    * refused and the application links from source again. */
++   static const char id[] = "mesa32 " PACKAGE_VERSION " " __DATE__ " " __TIME__;
++   _mesa_sha1_compute(id, sizeof(id) - 1, sha1);
++#else
+    disk_cache_compute_key(ctx->Cache, NULL, 0, sha1);
++#endif
+ }
+ 
+ static void
+-- 
+2.43.0
+

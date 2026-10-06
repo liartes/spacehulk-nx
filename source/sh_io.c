@@ -338,7 +338,9 @@ static int sh_stat(const char *path, void *out) {
   return r;
 }
 
+unsigned sh_eglMakeCurrent(void *d, void *dr, void *rd, void *c); /* sh_egl.c */
 const DynLibFunction port_imports[] = {
+    {"eglMakeCurrent", (uintptr_t)sh_eglMakeCurrent},
     {"stat", (uintptr_t)sh_stat},
     {"fopen", (uintptr_t)sh_fopen},
     {"fread", (uintptr_t)sh_fread},

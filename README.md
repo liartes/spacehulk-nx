@@ -40,6 +40,12 @@ Requirements: Docker, the toolchain image
 (`../libnx32/prefix`), [mesa32](https://github.com/aks796/mesa32)'s `lib/` and
 `include/` in `portlibs32/`, Python 3 with `pyelftools` and `capstone`.
 
+mesa32 with `tools/mesa32-program-binary.patch` applied (`git am` in a
+mesa32 checkout, then its `./build.sh`) offers program binaries, so Unity's
+own shader cache (`data/cache/UnityShaderCache/` on the SD card) works and a
+second start skips the GLSL compiles. The stock mesa32 release works too,
+without that cache.
+
 ```bash
 git submodule update --init
 python3 tools/make_icon.py <your APK>   # launcher/icon.jpg (the game's icon, not in git)

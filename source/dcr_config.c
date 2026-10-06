@@ -14,7 +14,7 @@
 
 /* Space Hulk: the Disney Crossy Road features these fields drive (IL
  * patches, the C# mod, FMOD patches at that build's offsets) stay off. */
-static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1};
+static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1, .skip_makecurrent = 1};
 static int g_aa_choice; /* [graphics] antialiasing: index in "game,0,2,4" */
 
 const DcrConfig *dcr_config(void) { return &g_cfg; }
@@ -37,6 +37,10 @@ static const CfgOpt k_opts[] = {
      "Unity renders on a thread of its own, on another core (the game ships\n"
      "# with it off on Android). Off: everything on the main thread, as on a phone.",
      CFG_BOOL, NULL, &g_cfg.threaded},
+    {"graphics", "skip_redundant_makecurrent", "true",
+     "Skip the engine's eglMakeCurrent calls that change nothing (its render\n"
+     "# thread spent much of its time in them).",
+     CFG_BOOL, NULL, &g_cfg.skip_makecurrent},
     CFG_ROW_BOOST("CPU at 1785 MHz while the game starts and inside loading frames (those\n"
                   "# over 50 ms), normal otherwise.",
                   &g_cfg.boost),
