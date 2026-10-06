@@ -50,9 +50,22 @@ void dcr_boost_hold(int on); /* dcr_boost.c */
 
 /* The bar runs 0-100% for this step alone: it is minutes of the first start,
  * where the setup's own share (960-985 permille) barely moved (2026-10-06). */
+static u64 g_strip_t0;
+
 static void strip_progress(uint64_t done, uint64_t total, void *ctx) {
   (void)ctx;
   rt_setup_progress_in("Optimizing the OBB for the Switch (once, a few minutes)", 0, 1000, done, total);
+  /* a log line every 10%: how far, how fast (a run closed half way left no
+   * trace of where it was, 2026-10-06) */
+  static int last = -1;
+  int tenth = total ? (int)(done * 10 / total) : 0;
+  if (tenth != last) {
+    last = tenth;
+    double s = (double)armTicksToNs(armGetSystemTick() - g_strip_t0) / 1e9;
+    debugPrintf("[setup] OBB optimization %d%%: %llu of %llu MB read, %.0f s, %.1f MB/s\n", tenth * 10,
+                (unsigned long long)(done >> 20), (unsigned long long)(total >> 20), s,
+                s > 0 ? (double)(done >> 20) / s : 0.0);
+  }
 }
 
 static void obb_optimize(const char *obb, long size, int p0, int p1) {
@@ -76,6 +89,7 @@ static void obb_optimize(const char *obb, long size, int p0, int p1) {
   remove(part);
   debugPrintf("[setup] optimizing the OBB for the Switch (its textures from their second mip)...\n");
   u64 t0 = armGetSystemTick();
+  g_strip_t0 = t0;
   dcr_boost_hold(1);
   ShObbStripStats st;
   int r = sh_obbstrip_run(obb, part, strip_progress, NULL, &st);
