@@ -12,8 +12,8 @@
  * the C# side then waits two frames and goes on.
  *
  * Here the same, from the frame loop (dcr_boot.c, sh_video_frame): the
- * player paused and its surface released (Mesa releases the window's
- * buffers), the movie played into a libnx framebuffer on that window, the
+ * player paused and its surface released (the window's buffers freed here:
+ * Unity never destroys that surface), the movie played into a libnx framebuffer on that window, the
  * surface given back and the player resumed. Decoding is the Sonic port's
  * ssr_video.c (from the PvZ port): the byte range through a custom
  * AVIOContext, FFmpeg (ffmpeg32 with the H.264 decoder) on a thread of its
@@ -441,6 +441,14 @@ static int play(void) {
   }
   int fw = 1280, fh = 720;
   dcr_window_size(&fw, &fh);
+  /* Unity lets go of its EGL surface (eglMakeCurrent(none)) but never
+   * destroys it -- it makes a new one when the surface comes back -- so Mesa
+   * keeps the window's buffers and libnx refuses a framebuffer on it
+   * (AlreadyInitialized, hardware 2026-10-06). They are released here, as
+   * Mesa's surface destruction would. */
+  Result rr = nwindowReleaseBuffers(nwindowGetDefault());
+  if (R_FAILED(rr))
+    debugPrintf("[video] releasing the window's buffers: 0x%x\n", (unsigned)rr);
   Framebuffer fb;
   Result rc = framebufferCreate(&fb, nwindowGetDefault(), (u32)fw, (u32)fh, PIXEL_FORMAT_RGBA_8888, 2);
   if (R_FAILED(rc)) {
