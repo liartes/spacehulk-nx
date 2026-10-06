@@ -49,6 +49,8 @@ without that cache.
 ```bash
 git submodule update --init
 python3 tools/make_icon.py <your APK>   # launcher/icon.jpg (the game's icon, not in git)
+unzip -j <your APK> 'assets/bin/Data/Managed/*.dll' -d mod/refs   # the game's assemblies, not in git
+mod/build_mod.sh      # mod/dcrmod.dll: the port's C# (mod/src), e.g. the Switch's video options
 ./build.sh            # spacehulk_nx.nsp
 launcher/build.sh     # launcher/spacehulk_nx.nro (carries the NSP)
 ```
@@ -69,3 +71,16 @@ python3 runtime/tools/gen_imports.py --libs /tmp/libs  # source/imports.c
 | Frame pacing | Choreographer VSYNC, pumped | none (eglSwapInterval / targetFrameRate): the pump is off |
 | Data | APK only | APK + OBB: `nativeFile(<obb>)` after the APK (`UnityPlayer.j()`) |
 | Imports | — | 43 more: NativeActivity input queue, `wcs*`, `swscanf`, `isnan`, ... (`sh_imports_extra.c`, `tools/imports.cfg`) |
+
+## A Switch-sized OBB (optional, prototype)
+
+The port loads textures from their second mip (1 GB of memory cannot hold the
+2048x2048 ones), yet Unity reads and inflates the top mip from the OBB first.
+`tools/obb/strip_mips.py` writes a copy of YOUR OBB whose mipmapped textures
+start at their second mip: the same picture, 1.48 GB -> 0.9 GB, 1.3 GB less
+to read and inflate. The port sees its marker entry and skips no further mip.
+
+```bash
+pip install UnityPy
+python3 tools/obb/strip_mips.py main.7.com.hoplite.spacehulk.obb out/main.7.com.hoplite.spacehulk.obb
+```

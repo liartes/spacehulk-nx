@@ -37,14 +37,24 @@ get_int_fn sh_i_GetQualityLevel;
 
 static int g_applied;
 
+int sh_obbindex_mips_stripped(void); /* sh_obbindex.c */
+
+/* The limit asked for, less the mip the OBB has already dropped
+ * (tools/obb/strip_mips.py): the same picture, a quarter of the reads. */
+static int tex_limit(void) {
+  int l = dcr_config()->tex_limit - (sh_obbindex_mips_stripped() ? 1 : 0);
+  return l < 0 ? 0 : l;
+}
+
 void sh_quality_apply(const char *why) {
   const DcrConfig *c = dcr_config();
   if (sh_i_set_masterTextureLimit)
-    sh_i_set_masterTextureLimit(c->tex_limit);
+    sh_i_set_masterTextureLimit(tex_limit());
   if (sh_i_set_antiAliasing && c->msaa >= 0)
     sh_i_set_antiAliasing(c->msaa);
-  debugPrintf("[quality] %s: level %d, textures 1/%d, MSAA %s%d\n", why,
-              sh_i_GetQualityLevel ? sh_i_GetQualityLevel() : -1, 1 << c->tex_limit,
+  debugPrintf("[quality] %s: level %d, textures 1/%d (masterTextureLimit %d%s), MSAA %s%d\n", why,
+              sh_i_GetQualityLevel ? sh_i_GetQualityLevel() : -1, 1 << c->tex_limit, tex_limit(),
+              sh_obbindex_mips_stripped() ? ", the OBB's mips already stripped" : "",
               c->msaa < 0 ? "the level's, not " : "", c->msaa < 0 ? 0 : c->msaa);
   g_applied = 1;
 }
