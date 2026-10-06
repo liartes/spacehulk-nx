@@ -1,7 +1,7 @@
 From 0e01c253270d13d95b914b60d32e2126aadede9d Mon Sep 17 00:00:00 2001
 From: Liartes <liartes@users.noreply.github.com>
 Date: Tue, 6 Oct 2026 17:58:20 +0200
-Subject: [PATCH] st: program binaries on the Switch without a disk cache
+Subject: [PATCH 1/2] st: program binaries on the Switch without a disk cache
 
 ---
  src/mesa/state_tracker/st_extensions.c   |  7 +++++++
@@ -56,6 +56,35 @@ index 3382b6539ab..c4b54f07dc2 100644
  }
  
  static void
+-- 
+2.43.0
+
+
+From aeb16fab3ffd5189071cd3f3f1d6ceee182db3f3 Mon Sep 17 00:00:00 2001
+From: Liartes <liartes@users.noreply.github.com>
+Date: Tue, 6 Oct 2026 19:13:04 +0200
+Subject: [PATCH 2/2] libdrm_nouveau: 1021 buckets for the client's bo map
+
+---
+ build_mesa32.sh | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/build_mesa32.sh b/build_mesa32.sh
+index 474290c967a..a3bc4fef603 100755
+--- a/build_mesa32.sh
++++ b/build_mesa32.sh
+@@ -42,6 +42,11 @@ fetch_drm() {
+ build_drm() {
+   fetch_drm
+   local S=$DRM_SRC B=$BUILD/drm
++  # The client's bo -> pushbuf reference table: 31 buckets for the hundreds
++  # of buffers a game's frame references, looked up twice per reference
++  # (pushbuf.c); bo_map_lookup was 4% of a Unity render thread (Space Hulk
++  # port, hardware 2026-10-06). 1021 buckets: 4 KB a client.
++  sed -i 's/^#define BO_MAP_NUM_BUCKETS 31$/#define BO_MAP_NUM_BUCKETS 1021/' "$S/source/private.h"
+   rm -rf "$B" && mkdir -p "$B" "$PREFIX/lib/pkgconfig" "$PREFIX/include"
+   for f in "$S"/source/*.c; do
+     echo "  drm: $(basename "$f")"
 -- 
 2.43.0
 
