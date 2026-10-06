@@ -32,3 +32,4 @@ launcher/icon.jpg
 # Python caches
 __pycache__/
 *.pyc
+tools/obb/.miniz/

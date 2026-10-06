@@ -16,7 +16,7 @@
 
 /* Space Hulk: the Disney Crossy Road features these fields drive (IL
  * patches, the C# mod, FMOD patches at that build's offsets) stay off. */
-static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1, .skip_makecurrent = 1, .pin_threads = 1, .gc_heap_mb = 96, .gl_no_error = 1};
+static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1, .skip_makecurrent = 1, .pin_threads = 1, .gc_heap_mb = 96, .gl_no_error = 1, .optimize_obb = 1};
 static int g_load_choice = 4; /* "high" */
 static int g_lights_choice = 3, g_shadow_choice = 3, g_lod_choice = 3; /* "2", "100", "3" */
 static int g_aa_choice; /* [graphics] antialiasing: index in "game,0,2,4" */
@@ -31,6 +31,11 @@ static const CfgOpt k_opts[] = {
      "# handheld), 720, 900 or 1080. The Switch scales the picture to the screen\n"
      "# either way; 900 docked keeps the frame rate up on the TV.",
      CFG_CHOICE, "720,900,1080,auto", NULL, 0, 0, 0, 0},
+    {"setup", "optimize_obb", "true",
+     "At the first start, rewrite the OBB for the Switch (a few minutes, once):\n"
+     "# its textures start at the size the port draws them, so it is ~40% smaller\n"
+     "# and missions load faster. Needs ~1 GB free on the SD card for a moment.",
+     CFG_BOOL, NULL, &g_cfg.optimize_obb},
     {"graphics", "texture_resolution", "half",
      "Texture resolution: full, half or quarter. Full is the game as on the\n"
      "# NVIDIA Shield, and does not fit in a mission: the 32-bit Switch program\n"

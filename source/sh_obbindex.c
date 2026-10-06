@@ -24,6 +24,7 @@
 #include <switch.h>
 
 #include "dcr_setup.h"
+#include "sh_obbstrip.h"
 #include "util.h"
 
 #define HDR 30u
@@ -155,7 +156,7 @@ void sh_obbindex_build(const char *obb, int64_t size, int p0, int p1) {
     if (le32(cd + p) != 0x02014b50u)
       break;
     e[n++].off = le32(cd + p + 42);
-    static const char mark[] = "assets/switch-mips-stripped";
+    static const char mark[] = SH_OBBSTRIP_MARK;
     if (le16(cd + p + 28) == sizeof mark - 1 && !memcmp(cd + p + 46, mark, sizeof mark - 1))
       flags |= FLAG_MIPS_STRIPPED;
     p += 46u + le16(cd + p + 28) + le16(cd + p + 30) + le16(cd + p + 32);
