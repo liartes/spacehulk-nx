@@ -4,6 +4,8 @@
  * MIT.
  */
 #include <stdio.h>
+#include <strings.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <switch.h>
 
@@ -22,10 +24,13 @@ static int g_aa_choice; /* [graphics] antialiasing: index in "game,0,2,4" */
 const DcrConfig *dcr_config(void) { return &g_cfg; }
 
 static const CfgOpt k_opts[] = {
-    CFG_ROW_RESOLUTION("auto",
-                       "Rendering resolution: auto (1080 if docked when the game starts, 720 in\n"
-                       "# handheld), 1080 or 720. The Switch scales the picture to the screen either\n"
-                       "# way."),
+    /* the runtime's row (CFG_ROW_RESOLUTION) knows 720, 1080 and auto; 900
+     * is this port's, applied in apply() below */
+    {"display", "resolution", "auto",
+     "Rendering resolution: auto (900 if docked when the game starts, 720 in\n"
+     "# handheld), 720, 900 or 1080. The Switch scales the picture to the screen\n"
+     "# either way; 900 docked keeps the frame rate up on the TV.",
+     CFG_CHOICE, "720,900,1080,auto", NULL, 0, 0, 0, 0},
     {"graphics", "texture_resolution", "half",
      "Texture resolution: full, half or quarter. Full is the game as on the\n"
      "# NVIDIA Shield, and does not fit in a mission: the 32-bit Switch program\n"
@@ -120,10 +125,34 @@ static const CfgOpt k_opts[] = {
     /* [config] version = 1: the engine's row, last (CfgTable.version) */
 };
 
+void dcr_window_set_size(int w, int h); /* rt_window.c */
+
+/* The rendering height asked for: 720, 900, 1080, or auto -- 900 docked,
+ * 720 handheld (the runtime's auto would be 1080 docked). 0: not one. */
+static int res_height(const char *r, int docked) {
+  if (!r)
+    return 0;
+  if (!strcasecmp(r, "auto"))
+    return docked ? 900 : 720;
+  int h = atoi(r);
+  return h == 720 || h == 900 || h == 1080 ? h : 0;
+}
+
 static void apply(void) {
   const RtConfig *rt = rt_config();
   g_cfg.res_w = rt->res_w;
   g_cfg.res_h = rt->res_h;
+  {
+    /* the runtime set the window from 720/1080/auto already; this port's
+     * own values (900, and auto meaning 900 docked) replace that */
+    int h = res_height(rt_config_get("display", "resolution"),
+                       appletGetOperationMode() == AppletOperationMode_Console);
+    if (h && h != g_cfg.res_h) {
+      g_cfg.res_h = h;
+      g_cfg.res_w = h * 16 / 9;
+      dcr_window_set_size(g_cfg.res_w, g_cfg.res_h);
+    }
+  }
   static const int lights[] = {-1, 0, 1, 2, 3, 4}, shadow[] = {-1, 30, 60, 100, 150, 300},
                    lod[] = {-1, 10, 20, 30, 50, 100};
   static const int prio[] = {-1, 0, 1, 2, 4}; /* UnityEngine.ThreadPriority */
