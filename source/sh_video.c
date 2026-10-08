@@ -462,6 +462,27 @@ static int play(void) {
     return 0;
   }
   framebufferMakeLinear(&fb);
+  /* framebufferBegin aborts the process -- a fatal error that restarts the
+   * console -- when it cannot dequeue a buffer (2345-0021, with threaded
+   * rendering off, hardware 2026-10-08). So one buffer is dequeued and given
+   * back here first, a few tries apart; without one, no movie. */
+  {
+    Result dq = 0;
+    int slot = -1;
+    for (int t = 0; t < 10; t++) {
+      dq = nwindowDequeueBuffer(nwindowGetDefault(), &slot, NULL);
+      if (R_SUCCEEDED(dq))
+        break;
+      svcSleepThread(20000000ll);
+    }
+    if (R_FAILED(dq)) {
+      debugPrintf("[video] the window gives no buffer (0x%x): not played\n", (unsigned)dq);
+      framebufferClose(&fb);
+      close_all();
+      return 0;
+    }
+    nwindowCancelBuffer(nwindowGetDefault(), slot, NULL);
+  }
   if (R_FAILED(threadCreate(&V.thread, decode_thread, NULL, NULL, 0x40000, 0x2C, 2)) ||
       R_FAILED(threadStart(&V.thread))) {
     debugPrintf("[video] no decoder thread\n");
