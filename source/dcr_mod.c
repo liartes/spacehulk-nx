@@ -324,6 +324,9 @@ static void register_icalls(void) {
     M.add_icall(k[i].n, k[i].f);
 }
 
+static void *g_tick;
+static int g_tick_threw;
+
 static int load(void) {
   bind_mono();
   register_icalls();
@@ -346,6 +349,7 @@ static int load(void) {
     debugPrintf("[mod] DcrMod.Loader.Init not found\n");
     return -1;
   }
+  g_tick = M.method_from_name(klass, "Tick", 0);
   debugPrintf("[mod] dcrmod.dll loaded (%lu bytes); DcrMod.Loader.Init\n", (unsigned long)dcrmod_dll_size);
   void *exc = NULL;
   M.invoke(init, NULL, NULL, &exc);
@@ -358,6 +362,15 @@ static int load(void) {
 
 /* dcr_boot.c, after each frame the engine renders */
 void dcr_mod_frame(uint64_t frame) {
+  /* Loader.Tick every 30 frames: the mod's objects checked from outside
+   * Unity's own calls (its MonoBehaviours never logged a Start: run 30) */
+  if (g_state == 1 && g_tick && frame % 30 == 0) {
+    void *exc = NULL;
+    M.invoke(g_tick, NULL, NULL, &exc);
+    if (exc && !g_tick_threw++)
+      debugPrintf("[mod] Loader.Tick threw\n");
+    return;
+  }
   if (g_state || !g_game_loaded)
     return;
   if (dcrmod_dll_size == 0) { /* no mod/dcrmod.dll built into this program */

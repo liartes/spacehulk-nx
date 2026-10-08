@@ -11,16 +11,39 @@ namespace DcrMod
         // "[mod] <text>" in debug.log (dcr_mod.c)
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void Log(string text);
+
+        // the game folder on the SD card (sdmc:/switch/spacehulk_nx)
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public static extern string GameRoot();
     }
 
     public static class Loader
     {
+        static GameObject go;
+
         public static void Init()
         {
-            var go = new GameObject("SpaceHulkSwitch");
+            Make();
+        }
+
+        static void Make()
+        {
+            go = new GameObject("SpaceHulkSwitch");
             Object.DontDestroyOnLoad(go);
             go.AddComponent<SwitchMenus>();
-            Native.Log("SwitchMenus ready");
+            go.AddComponent<DoorFix>();
+        }
+
+        // every 30 frames (source/dcr_mod.c): the game's first scene
+        // (sceneLoaderAndroid) destroys the object Init made, DontDestroyOnLoad
+        // or not, before any of its components started (hardware, 2026-10-08):
+        // made again whenever it is gone
+        public static void Tick()
+        {
+            if (go != null)
+                return;
+            Make();
+            Native.Log("SwitchMenus and DoorFix ready (level " + Application.loadedLevelName + ")");
         }
     }
 }

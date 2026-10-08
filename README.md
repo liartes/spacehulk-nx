@@ -43,6 +43,9 @@ APK and its expansion file (OBB).
   of detail). All of it can be changed in `config.ini`.
 * The video options the Switch cannot honour (resolution, full screen, v-sync)
   are hidden from the game's menu.
+* The doors' leaves are drawn where their animation puts them: the missions
+  were built with them merged into the static scenery, so on the Switch the
+  doors opened (line of sight included) but looked shut.
 * Online features (Google Play Games, multiplayer servers) are not available.
 
 ---
@@ -186,7 +189,7 @@ parts are the `sh_*.c` files in `source/`:
 | `sh_sched.c` | the render thread on a core of its own |
 | `sh_padprobe.c` | `[debug] log_buttons`: which Unity button each Switch button becomes |
 | `sh_imports_extra.c`, `sh_egl.c` | imports Unity 5.3 needs, EGL details |
-| `mod/src/` | C# loaded into the game: the video menu's options for the Switch |
+| `mod/src/` | C# loaded into the game: the video menu's options for the Switch, the doors' animation |
 
 ---
 
