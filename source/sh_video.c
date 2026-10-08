@@ -451,6 +451,7 @@ static int play(void) {
    * keeps the window's buffers and libnx refuses a framebuffer on it
    * (AlreadyInitialized, hardware 2026-10-06). They are released here, as
    * Mesa's surface destruction would. */
+  svcSleepThread(100000000ll); /* the last frame off the GPU before its buffers go */
   Result rr = nwindowReleaseBuffers(nwindowGetDefault());
   if (R_FAILED(rr))
     debugPrintf("[video] releasing the window's buffers: 0x%x\n", (unsigned)rr);
@@ -569,6 +570,13 @@ static int play(void) {
 
 /* dcr_boot.c, between frames, with the player paused and its surface
  * released (as the Android VideoView does): the movie asked for, if any. */
+void sh_video_drop_pending(void) {
+  if (!R.pending)
+    return;
+  R.pending = 0;
+  debugPrintf("[video] skipped: threaded rendering is off ([graphics] threaded_rendering)\n");
+}
+
 void sh_video_play_pending(void) {
   if (!R.pending)
     return;

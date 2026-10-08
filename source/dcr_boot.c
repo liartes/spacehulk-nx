@@ -245,8 +245,17 @@ int dcr_boot_run(void) {
      * player paused and its surface taken away, the movie, then the surface
      * back and the player resumed (sh_video.c) */
     int sh_video_pending(void);
-    if (sh_video_pending()) {
+    if (sh_video_pending() && !dcr_config()->threaded) {
+      /* Unity renders on this very thread then, its last frame maybe still
+       * on the GPU when the window's buffers would go to the movie: that
+       * restarted the console (hardware 2026-10-08). No movie in that mode:
+       * the player goes on as if it had played (AndroidVideoPlayer stops it
+       * two frames later). */
+      void sh_video_drop_pending(void);
+      sh_video_drop_pending();
+    } else if (sh_video_pending()) {
       void sh_video_play_pending(void);
+      log_set_quiet(0); /* a crash during the movie leaves its lines */
       debugPrintf("[video] pausing the player and releasing its surface\n");
       if (U.pause) U.pause(g_jni_env, g_thiz);
       U.recreateGfxState(g_jni_env, g_thiz, 0, NULL);
@@ -254,6 +263,9 @@ int dcr_boot_run(void) {
       U.recreateGfxState(g_jni_env, g_thiz, 0, g_surface);
       if (U.resume) U.resume(g_jni_env, g_thiz);
       debugPrintf("[video] the player has its surface back\n");
+      log_flush_ring();
+      if (frames >= 3)
+        log_set_quiet(1);
     }
     void sh_quality_boot(void);
     sh_quality_boot(); /* the texture limit, as soon as QualitySettings answers (sh_quality.c) */
