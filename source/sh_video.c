@@ -19,7 +19,7 @@
  * AVIOContext, FFmpeg (ffmpeg32 with the H.264 decoder) on a thread of its
  * own a few pictures ahead, BT.601 -> RGBA in NEON. The sound replaces
  * FMOD's in the audio pump (dcr_audio.c: dcr_audio_source), resampled to
- * 48 kHz, and is the clock the pictures follow; a picture that is late is
+ * 48 kHz (sh_resample.h), and is the clock the pictures follow; a picture that is late is
  * passed over. Any button ends it, as CancelOnInput does.
  *
  * Compiled with -fno-short-enums, as FFmpeg is (Makefile). MIT.
@@ -32,6 +32,7 @@
 #include <switch.h>
 
 #include "dcr_path.h"
+#include "sh_resample.h"
 #include "util.h"
 
 #include <libavcodec/avcodec.h>
@@ -97,6 +98,7 @@ static struct {
   double apos; /* next frame to play */
   volatile int audio_go;
   volatile uint64_t played; /* output frames given to the pump */
+  uint64_t starved;          /* of those, played as silence: the sound there not decoded yet */
 } V;
 
 static int io_read(void *opaque, uint8_t *buf, int n) {
@@ -228,6 +230,8 @@ static void put_sound(const AVFrame *f) {
   mutexUnlock(&V.lock);
 }
 
+static ShResampler g_rs; /* the movie's rate -> the output's */
+
 /* The audio pump's source while a movie plays (dcr_audio.c): the movie's
  * sound at the output rate, silence until the first picture. */
 static int audio_source(int16_t *out, int frames, int rate) {
@@ -242,12 +246,13 @@ static int audio_source(int16_t *out, int frames, int rate) {
    * behind a decoder that is busy with pictures */
   const double step = (double)V.arate / (double)rate;
   const double have = (double)V.pcm_frames;
+  if (g_rs.in_rate != V.arate || g_rs.out_rate != rate)
+    sh_resample_init(&g_rs, V.arate, rate);
   for (int i = 0; i < frames; i++) {
-    const int i0 = (int)V.apos;
-    const double t = V.apos - i0;
     if (V.apos + 1 < have)
-      for (int c = 0; c < 2; c++)
-        out[i * 2 + c] = (int16_t)(V.pcm[i0 * 2 + c] * (1 - t) + V.pcm[(i0 + 1) * 2 + c] * t);
+      sh_resample_at(&g_rs, V.pcm, (int64_t)have, V.apos, &out[i * 2]);
+    else if (!V.eof)
+      V.starved++;
     V.apos += step;
   }
   mutexUnlock(&V.lock);
@@ -255,41 +260,95 @@ static int audio_source(int16_t *out, int frames, int rate) {
   return 1;
 }
 
+/* Two threads. The file keeps a moment's sound up to 0.35-0.40 s after its
+ * pictures (both movies), and one thread reading the file and decoding the
+ * pictures left that sound undecoded while it waited for a picture slot or
+ * spent its time on 1080p pictures: the clock played silence in its place
+ * (the intro's music came out holed -- hiss and echo on the console's
+ * speaker; the logo 5.9 s silent of 6.2, 2026-10-09). So the reader decodes
+ * the sound at once and queues the pictures' packets; the picture thread
+ * decodes them into the slots. */
+#define VQ_MAX 256 /* ~8 s of pictures read ahead */
+static AVPacket *g_vq[VQ_MAX];
+static int g_vq_head, g_vq_n;
+static volatile int g_read_done;
+static Thread g_vthread;
+static int g_vthread_on;
+
+static void picture_thread(void *arg) {
+  (void)arg;
+  AVFrame *fr = av_frame_alloc();
+  int pictures = 0;
+  while (fr && !V.stop) {
+    AVPacket *p = NULL;
+    mutexLock(&V.lock);
+    if (g_vq_n) {
+      p = g_vq[g_vq_head];
+      g_vq_head = (g_vq_head + 1) % VQ_MAX;
+      g_vq_n--;
+    }
+    mutexUnlock(&V.lock);
+    if (!p) {
+      if (!g_read_done) {
+        svcSleepThread(2000000ll);
+        continue;
+      }
+      avcodec_send_packet(V.vdec, NULL); /* the end: what the decoder holds */
+      while (!V.stop && avcodec_receive_frame(V.vdec, fr) == 0)
+        put_picture(fr), pictures++;
+      break;
+    }
+    if (avcodec_send_packet(V.vdec, p) >= 0)
+      while (!V.stop && avcodec_receive_frame(V.vdec, fr) == 0)
+        put_picture(fr), pictures++;
+    av_packet_free(&p);
+  }
+  av_frame_free(&fr);
+  debugPrintf("[video] decoded %d pictures, %u sound frames%s\n", pictures, (unsigned)V.pcm_frames,
+              V.stop ? " (stopped)" : "");
+  V.eof = 1;
+}
+
 static void decode_thread(void *arg) {
   (void)arg;
   AVPacket *pkt = av_packet_alloc();
   AVFrame *fr = av_frame_alloc();
-  int pictures = 0;
   while (pkt && fr && !V.stop) {
+    mutexLock(&V.lock);
+    const int full = g_vq_n == VQ_MAX;
+    mutexUnlock(&V.lock);
+    if (full) { /* far enough ahead: wait for the pictures */
+      svcSleepThread(2000000ll);
+      continue;
+    }
     const int r = av_read_frame(V.fmt, pkt);
-    AVCodecContext *dec = NULL;
-    if (r >= 0)
-      dec = pkt->stream_index == V.vs ? V.vdec : pkt->stream_index == V.as ? V.adec : NULL;
     if (r < 0) {
-      if (V.vdec)
-        avcodec_send_packet(V.vdec, NULL);
-      while (V.vdec && !V.stop && avcodec_receive_frame(V.vdec, fr) == 0)
-        put_picture(fr), pictures++;
       if (V.adec)
         avcodec_send_packet(V.adec, NULL);
       while (V.adec && avcodec_receive_frame(V.adec, fr) == 0)
         put_sound(fr);
       break;
     }
-    if (dec && avcodec_send_packet(dec, pkt) >= 0)
-      while (!V.stop && avcodec_receive_frame(dec, fr) == 0) {
-        if (dec == V.vdec)
-          put_picture(fr), pictures++;
-        else
-          put_sound(fr);
+    if (pkt->stream_index == V.vs && V.vdec) {
+      AVPacket *q = av_packet_alloc();
+      if (q) {
+        av_packet_move_ref(q, pkt);
+        mutexLock(&V.lock);
+        g_vq[(g_vq_head + g_vq_n) % VQ_MAX] = q;
+        g_vq_n++;
+        mutexUnlock(&V.lock);
       }
+    } else if (pkt->stream_index == V.as && V.adec && avcodec_send_packet(V.adec, pkt) >= 0) {
+      while (!V.stop && avcodec_receive_frame(V.adec, fr) == 0)
+        put_sound(fr);
+    }
     av_packet_unref(pkt);
   }
   av_frame_free(&fr);
   av_packet_free(&pkt);
-  debugPrintf("[video] decoded %d pictures, %u sound frames%s\n", pictures, (unsigned)V.pcm_frames,
-              V.stop ? " (stopped)" : "");
-  V.eof = 1;
+  g_read_done = 1;
+  if (!V.vdec)
+    V.eof = 1;
 }
 
 static void close_all(void) {
@@ -299,6 +358,18 @@ static void close_all(void) {
     threadClose(&V.thread);
     V.thread_on = 0;
   }
+  if (g_vthread_on) {
+    threadWaitForExit(&g_vthread);
+    threadClose(&g_vthread);
+    g_vthread_on = 0;
+  }
+  while (g_vq_n) { /* stopped: the packets left */
+    av_packet_free(&g_vq[g_vq_head]);
+    g_vq_head = (g_vq_head + 1) % VQ_MAX;
+    g_vq_n--;
+  }
+  g_vq_head = 0;
+  g_read_done = 0;
   dcr_audio_source_end();
   V.audio_go = 0;
   avcodec_free_context(&V.vdec);
@@ -484,6 +555,10 @@ static int play(void) {
     }
     nwindowCancelBuffer(nwindowGetDefault(), slot, NULL);
   }
+  /* the reader and the sound on core 2, the pictures on core 1 (the render
+   * thread's, idle with the player paused) */
+  g_vq_head = g_vq_n = 0;
+  g_read_done = 0;
   if (R_FAILED(threadCreate(&V.thread, decode_thread, NULL, NULL, 0x40000, 0x2C, 2)) ||
       R_FAILED(threadStart(&V.thread))) {
     debugPrintf("[video] no decoder thread\n");
@@ -492,6 +567,16 @@ static int play(void) {
     return 0;
   }
   V.thread_on = 1;
+  if (V.vdec) {
+    if (R_FAILED(threadCreate(&g_vthread, picture_thread, NULL, NULL, 0x40000, 0x2C, 1)) ||
+        R_FAILED(threadStart(&g_vthread))) {
+      debugPrintf("[video] no picture thread\n");
+      framebufferClose(&fb);
+      close_all();
+      return 0;
+    }
+    g_vthread_on = 1;
+  }
   dcr_boost_hold(1);
   if (dcr_audio_source_begin(audio_source) != 0)
     debugPrintf("[video] no sound output: the pictures follow the wall clock\n");
@@ -558,8 +643,10 @@ static int play(void) {
       break;
     }
   }
-  debugPrintf("[video] %s: %d pictures shown, %d passed over (late), %.1f s\n", why, shown, passed,
-              (double)armTicksToNs(armGetSystemTick() - t_start) / 1e9);
+  debugPrintf("[video] %s: %d pictures shown, %d passed over (late), %.1f s; sound: %llu ms played as "
+              "silence, not decoded in time\n", why, shown, passed,
+              (double)armTicksToNs(armGetSystemTick() - t_start) / 1e9,
+              (unsigned long long)(V.starved * 1000 / 48000));
   (void)skipped;
   dcr_audio_source_end();
   dcr_boost_hold(0);
