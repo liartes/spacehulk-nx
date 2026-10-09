@@ -339,11 +339,13 @@ static int sh_stat(const char *path, void *out) {
 }
 
 unsigned sh_eglMakeCurrent(void *d, void *dr, void *rd, void *c); /* sh_egl.c */
+unsigned sh_eglSwapInterval(void *d, int i); /* sh_egl.c */
 void sh_glDrawElements(unsigned mode, int count, unsigned type, const void *indices); /* sh_glcount.c */
 void sh_glDrawArrays(unsigned mode, int first, int count);
 
 const DynLibFunction port_imports[] = {
     {"eglMakeCurrent", (uintptr_t)sh_eglMakeCurrent},
+    {"eglSwapInterval", (uintptr_t)sh_eglSwapInterval},
     {"glDrawElements", (uintptr_t)sh_glDrawElements},
     {"glDrawArrays", (uintptr_t)sh_glDrawArrays},
     {"stat", (uintptr_t)sh_stat},

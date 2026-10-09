@@ -45,6 +45,17 @@ static void report(void) {
               (unsigned long)(calls * 1000000000ull / ns), (unsigned long)skipped);
 }
 
+/* The engine asks for a swap interval of 1; [display] frame_rate 30 makes it
+ * 2: Mesa's Switch EGL hands it to nwindowSetSwapInterval, the swap waits for
+ * every other refresh, and the threads sleep the rest of the time. */
+EGLBoolean b_eglSwapInterval(EGLDisplay d, EGLint i); /* gl_mesa.c */
+EGLBoolean sh_eglSwapInterval(EGLDisplay d, EGLint i) {
+  const int want = dcr_config()->swap_interval;
+  if (i > 0 && i < want)
+    i = want;
+  return b_eglSwapInterval(d, i);
+}
+
 EGLBoolean sh_eglMakeCurrent(EGLDisplay d, EGLSurface dr, EGLSurface rd, EGLContext c) {
   g_calls++;
   report();
