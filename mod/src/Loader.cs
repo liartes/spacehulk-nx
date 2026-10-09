@@ -31,6 +31,7 @@ namespace DcrMod
         public static void Init()
         {
             UndoSave.Install();
+            FastSerialize.Install();
             Make();
         }
 
