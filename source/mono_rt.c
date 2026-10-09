@@ -374,9 +374,19 @@ void dcr_mono_hook_exceptions(void) {
 void dcr_mono_report(void) {
   if (!g_n_suspend && !g_n_unknown)
     return;
+  /* the managed heap: how big Boehm made it, how much of it is in use */
+  static int64_t (*heap_size)(void), (*used_size)(void);
+  static int looked;
+  if (!looked) {
+    looked = 1;
+    heap_size = (int64_t(*)(void))so_try_find_addr_rx(&mono_mod, "mono_gc_get_heap_size");
+    used_size = (int64_t(*)(void))so_try_find_addr_rx(&mono_mod, "mono_gc_get_used_size");
+  }
   debugPrintf("[mono] GC bridge: %lu suspends, %lu restarts, %lu retries, %lu full-stack scans, "
-              "%lu non-GC threads; %lu collections stopped the world %llu ms in all (longest %llu ms)\n",
+              "%lu non-GC threads; %lu collections stopped the world %llu ms in all (longest %llu ms); "
+              "managed heap %lld MB, %lld MB in use\n",
               (unsigned long)g_n_suspend, (unsigned long)g_n_restart, (unsigned long)g_n_retry,
               (unsigned long)g_n_ctx_fail, (unsigned long)g_n_unknown, (unsigned long)g_gc_n,
-              (unsigned long long)(g_gc_ns / 1000000ull), (unsigned long long)(g_gc_max_ns / 1000000ull));
+              (unsigned long long)(g_gc_ns / 1000000ull), (unsigned long long)(g_gc_max_ns / 1000000ull),
+              heap_size ? (long long)(heap_size() >> 20) : -1LL, used_size ? (long long)(used_size() >> 20) : -1LL);
 }
