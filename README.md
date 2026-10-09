@@ -39,8 +39,10 @@ APK and its expansion file (OBB).
   minutes): its textures start at the size the port draws them, so it is
   about 40% smaller and loads faster. The picture is the same.
 * Unity's multithreaded rendering is enabled, and the heaviest settings of
-  the top quality level are toned down (dynamic lights, shadow distance, level
-  of detail). All of it can be changed in `config.ini`.
+  the top quality level are toned down: the dynamic lights are drawn per
+  vertex (a mission has ~130 of them, each drawn per pixel draws what it
+  touches again), shorter shadow distance, less level of detail. All of it
+  can be changed in `config.ini`.
 * The video options the Switch cannot honour (resolution, full screen, v-sync)
   are hidden from the game's menu.
 * The doors' leaves are drawn where their animation puts them: the missions
@@ -114,7 +116,8 @@ option explained above it. Among them:
 | --- | --- | --- |
 | `[display] resolution` | `auto` | 720 handheld, 900 docked; or `720`, `900`, `1080` |
 | `[graphics] texture_resolution` | `half` | `full` does not fit in memory in missions |
-| `[graphics] pixel_lights`, `shadow_distance`, `lod_bias` | `2`, `100`, `3` | `game` for the game's own top-level values |
+| `[graphics] pixel_lights` | `0` | `2`: finer lighting, ~15% slower in busy missions; `game`: the top level's 4 |
+| `[graphics] shadow_distance`, `lod_bias` | `100`, `3` | `game` for the game's own top-level values |
 | `[graphics] antialiasing` | `0` | `2`, `4` or `game` |
 | `[performance] loading_priority` | `high` | how fast Unity takes in what it loads |
 | `[setup] optimize_obb` | `true` | the OBB optimization of the first start |

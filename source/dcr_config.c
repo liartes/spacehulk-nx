@@ -18,7 +18,7 @@
  * patches, the C# mod, FMOD patches at that build's offsets) stay off. */
 static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1, .skip_makecurrent = 1, .pin_threads = 1, .gc_heap_mb = 0, .gl_no_error = 1, .optimize_obb = 1, .gpu_pool = 1};
 static int g_load_choice = 4; /* "high" */
-static int g_lights_choice = 3, g_shadow_choice = 3, g_lod_choice = 3; /* "2", "100", "3" */
+static int g_lights_choice = 1, g_shadow_choice = 3, g_lod_choice = 3; /* "0", "100", "3" */
 static int g_aa_choice; /* [graphics] antialiasing: index in "game,0,2,4" */
 
 const DcrConfig *dcr_config(void) { return &g_cfg; }
@@ -58,9 +58,11 @@ static const CfgOpt k_opts[] = {
      "Skip the engine's eglMakeCurrent calls that change nothing (its render\n"
      "# thread spent much of its time in them).",
      CFG_BOOL, NULL, &g_cfg.skip_makecurrent},
-    {"graphics", "pixel_lights", "2",
+    {"graphics", "pixel_lights", "0",
      "Dynamic lights drawn per pixel: each one draws every object it touches\n"
-     "# again. game = the quality level's (4 at the top level).",
+     "# again, and a mission has ~130 of them. 0: all of them per vertex, ~50 fps\n"
+     "# in a busy mission; 2: finer lighting, ~42 fps. game = the quality\n"
+     "# level's (4 at the top level).",
      CFG_CHOICE, "game,0,1,2,3,4", &g_lights_choice},
     {"graphics", "shadow_distance", "100",
      "How far shadows are drawn. game = the quality level's (300 at the top level).",
@@ -129,11 +131,16 @@ static const CfgOpt k_opts[] = {
      "The - button saves a screenshot of the game's picture (capture-NNN.bmp\n"
      "# here) instead of being the game's Select (the strategic view).",
      CFG_BOOL, NULL, &g_cfg.minus_capture},
+    {"debug", "perf_bench", "false",
+     "In missions, switch every 20 s between graphics variants (pixel lights,\n"
+     "# shadows, animation culling) and write each one's frame rate and draw\n"
+     "# calls to debug.log (mod/src/PerfBench.cs). For tuning only.",
+     CFG_BOOL, NULL, NULL},
     {"debug", "log_sounds", "false",
      "Write every sound the game plays (and its volume faders) to debug.log\n"
      "# (for a bug report about audio).",
      CFG_BOOL, NULL, &g_cfg.log_sounds},
-    /* [config] version = 1: the engine's row, last (CfgTable.version) */
+    /* [config] version = 2: the engine's row, last (CfgTable.version) */
 };
 
 void dcr_window_set_size(int w, int h); /* rt_window.c */
@@ -179,10 +186,20 @@ static void apply(void) {
               g_cfg.profile ? "on" : "off", g_cfg.log_sounds ? "on" : "off");
 }
 
+/* Changed defaults, moved in files written by an older build. */
+static const CfgMigrate k_migrate[] = {
+    /* v0.1.3: no per-pixel lights by default -- in a busy mission 2 of them
+     * meant ~40% more draw calls on the render thread, 42 fps -> 50
+     * (mod/src/PerfBench.cs, hardware 2026-10-09) */
+    {"graphics", "pixel_lights", "2", "0", 2},
+};
+
 static const CfgTable k_table = {
     .opts = k_opts,
     .nopts = CFG_COUNT(k_opts),
-    .version = 1,
+    .migrate = k_migrate,
+    .nmigrate = CFG_COUNT(k_migrate),
+    .version = 2,
     .apply = apply,
 };
 
