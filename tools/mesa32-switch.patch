@@ -1,7 +1,7 @@
 From 7c43d47159c61085b0ffc598de38d0a5d2efeb73 Mon Sep 17 00:00:00 2001
 From: Liartes <liartes@users.noreply.github.com>
 Date: Tue, 6 Oct 2026 17:58:20 +0200
-Subject: [PATCH 1/2] st: program binaries on the Switch without a disk cache
+Subject: [PATCH 1/3] st: program binaries on the Switch without a disk cache
 
 ---
  src/mesa/state_tracker/st_extensions.c   |  7 +++++++
@@ -63,7 +63,7 @@ index 3382b6539ab..c4b54f07dc2 100644
 From 41b901ef828249e983869a0fd94b889442494a80 Mon Sep 17 00:00:00 2001
 From: Liartes <liartes@users.noreply.github.com>
 Date: Tue, 6 Oct 2026 19:13:04 +0200
-Subject: [PATCH 2/2] libdrm_nouveau: 1021 buckets for the client's bo map
+Subject: [PATCH 2/3] libdrm_nouveau: 1021 buckets for the client's bo map
 
 ---
  build_mesa32.sh | 5 +++++
@@ -82,6 +82,53 @@ index 474290c967a..a3bc4fef603 100755
 +  # (pushbuf.c); bo_map_lookup was 4% of a Unity render thread (Space Hulk
 +  # port, hardware 2026-10-06). 1021 buckets: 4 KB a client.
 +  sed -i 's/^#define BO_MAP_NUM_BUCKETS 31$/#define BO_MAP_NUM_BUCKETS 1021/' "$S/source/private.h"
+   rm -rf "$B" && mkdir -p "$B" "$PREFIX/lib/pkgconfig" "$PREFIX/include"
+   for f in "$S"/source/*.c; do
+     echo "  drm: $(basename "$f")"
+-- 
+2.43.0
+
+
+From fe4a9cbb1dbce5cc3a833a13ee092dc6e9c8ec4b Mon Sep 17 00:00:00 2001
+From: Liartes <liartes@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 14:33:49 +0200
+Subject: [PATCH 3/3] libdrm_nouveau: buffer memory through overridable hooks
+
+nouveau_bo_new takes a buffer's memory with memalign and gives it back with
+free. The build now routes both through nouveau_switch_bo_alloc /
+nouveau_switch_bo_free, weak and doing the same by default, so that a
+program can keep GPU buffers apart from its small allocations (mixed in one
+heap they fragmented it: Space Hulk port, hardware 2026-10-09).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ build_mesa32.sh | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/build_mesa32.sh b/build_mesa32.sh
+index a3bc4fef603..a69388a20bf 100755
+--- a/build_mesa32.sh
++++ b/build_mesa32.sh
+@@ -47,6 +47,22 @@ build_drm() {
+   # (pushbuf.c); bo_map_lookup was 4% of a Unity render thread (Space Hulk
+   # port, hardware 2026-10-06). 1021 buckets: 4 KB a client.
+   sed -i 's/^#define BO_MAP_NUM_BUCKETS 31$/#define BO_MAP_NUM_BUCKETS 1021/' "$S/source/private.h"
++  # A buffer's memory through two hooks, weak here (memalign / free, as
++  # before) and replaced by a program that keeps GPU buffers apart from its
++  # small allocations: mixed in one heap they fragmented it until a 1 MB
++  # texture found no room with 285 MB free (Space Hulk port, hardware
++  # 2026-10-09).
++  sed -i -e 's/void\* mem = memalign(0x1000, size);/void* mem = nouveau_switch_bo_alloc(size);/' \
++    -e 's/^\t\tfree(mem);$/\t\tnouveau_switch_bo_free(mem);/' \
++    -e 's/^\t\tfree(nvbo->map_addr);$/\t\tnouveau_switch_bo_free(nvbo->map_addr);/' "$S/source/nouveau.c"
++  grep -q '^void \*nouveau_switch_bo_alloc' "$S/source/nouveau.c" || cat >> "$S/source/nouveau.c" <<'HOOKS'
++
++/* the memory of a buffer object: page-aligned, a multiple of 0x1000 bytes */
++__attribute__((weak)) void *nouveau_switch_bo_alloc(size_t size) { return memalign(0x1000, size); }
++__attribute__((weak)) void nouveau_switch_bo_free(void *p) { free(p); }
++HOOKS
++  grep -q 'nouveau_switch_bo_alloc(size_t' "$S/source/private.h" || \
++    sed -i 's/^#endif$/void *nouveau_switch_bo_alloc(size_t size);\nvoid nouveau_switch_bo_free(void *p);\n\n#endif/' "$S/source/private.h"
    rm -rf "$B" && mkdir -p "$B" "$PREFIX/lib/pkgconfig" "$PREFIX/include"
    for f in "$S"/source/*.c; do
      echo "  drm: $(basename "$f")"

@@ -328,6 +328,8 @@ int dcr_boot_run(void) {
         if (frames == 600 || frames % 3600 == 0) /* the first call only takes a snapshot */
           dcr_boost_cpu_report();
         dcr_apkcache_report();
+        void sh_gpumem_report(void);
+        sh_gpumem_report(); /* sh_gpumem.c */
       }
     }
     /* From here the log goes to a RAM ring, written out every 300 frames (and

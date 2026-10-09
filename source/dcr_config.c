@@ -16,7 +16,7 @@
 
 /* Space Hulk: the Disney Crossy Road features these fields drive (IL
  * patches, the C# mod, FMOD patches at that build's offsets) stay off. */
-static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1, .skip_makecurrent = 1, .pin_threads = 1, .gc_heap_mb = 0, .gl_no_error = 1, .optimize_obb = 1};
+static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1, .skip_makecurrent = 1, .pin_threads = 1, .gc_heap_mb = 0, .gl_no_error = 1, .optimize_obb = 1, .gpu_pool = 1};
 static int g_load_choice = 4; /* "high" */
 static int g_lights_choice = 3, g_shadow_choice = 3, g_lod_choice = 3; /* "2", "100", "3" */
 static int g_aa_choice; /* [graphics] antialiasing: index in "game,0,2,4" */
@@ -82,7 +82,7 @@ static const CfgOpt k_opts[] = {
      "Mono's garbage collector starts with this much heap (MB), so it collects\n"
      "# less often. 0: Mono's own -- keep it: 96 took ~85 MB from the 1 GB the\n"
      "# game has, and long sessions ran out of memory (crashes).",
-     CFG_INT, "0,32,64,96,128,192", &g_cfg.gc_heap_mb},
+     CFG_INT, "0,32,48,64,96,128,192", &g_cfg.gc_heap_mb},
     CFG_ROW_BOOST("CPU at 1785 MHz while the game starts and inside loading frames (those\n"
                   "# over 50 ms), normal otherwise.",
                   &g_cfg.boost),
@@ -90,6 +90,11 @@ static const CfgOpt k_opts[] = {
      "Open the OBB once and share it: Unity opens it again for every asset it\n"
      "# reads (80+ times a second while loading), each open slow on the SD card.",
      CFG_BOOL, NULL, &g_cfg.obb_shared},
+    {"performance", "gpu_buffer_pool", "true",
+     "Textures and meshes in memory of their own, apart from the game's small\n"
+     "# allocations: mixed in one heap they fragmented it (out-of-memory crashes\n"
+     "# when a new mission loads).",
+     CFG_BOOL, NULL, &g_cfg.gpu_pool},
     {"performance", "read_buffer_kb", "32",
      "Read buffer of the game's other files, in KB (each refill is one request\n"
      "# to the SD card). 0: the C library's own, 1 KB.",

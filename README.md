@@ -139,9 +139,10 @@ Requirements:
   (`../libnx32/prefix`),
 * [mesa32](https://github.com/aks796/mesa32), built with
   `tools/mesa32-switch.patch` applied (`git am`: program binaries, so Unity's
-  own shader cache works, and a larger buffer map in libdrm_nouveau), its
+  own shader cache works; a larger buffer map in libdrm_nouveau; and hooks
+  for the GPU buffers' memory, which `sh_gpumem.c` keeps apart), its
   `lib/` and `include/` in `portlibs32/`. The stock mesa32 release works too,
-  without those two.
+  without those three.
 * [ffmpeg32](https://github.com/aks796/ffmpeg32) with H.264, its `lib/` and
   `include/` in `portlibs32/`:
   `FFMPEG_COMPONENTS="--enable-demuxer=mov --enable-decoder=h264 --enable-parser=h264 --enable-decoder=aac --enable-parser=aac" ./build.sh`
@@ -187,6 +188,7 @@ parts are the `sh_*.c` files in `source/`:
 | `sh_obbstrip.c` | the first start's OBB optimization |
 | `sh_video.c` | `Handheld.PlayFullScreenMovie` through FFmpeg |
 | `sh_sched.c` | the render thread on a core of its own |
+| `sh_gpumem.c` | textures and meshes in memory of their own, so the heap does not fragment |
 | `sh_padprobe.c` | `[debug] log_buttons`: which Unity button each Switch button becomes |
 | `sh_imports_extra.c`, `sh_egl.c` | imports Unity 5.3 needs, EGL details |
 | `mod/src/` | C# loaded into the game: the video menu's options for the Switch, the doors' animation |
