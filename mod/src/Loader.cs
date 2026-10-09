@@ -12,6 +12,13 @@ namespace DcrMod
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void Log(string text);
 
+        // target's compiled code jumps to repl's (source/dcr_mod.c); 0 done
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public static extern int Detour(System.IntPtr target, System.IntPtr repl, System.IntPtr orig);
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public static extern long TicksMs();
+
         // the game folder on the SD card (sdmc:/switch/spacehulk_nx)
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern string GameRoot();
@@ -23,6 +30,7 @@ namespace DcrMod
 
         public static void Init()
         {
+            UndoSave.Install();
             Make();
         }
 

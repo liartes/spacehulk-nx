@@ -11,4 +11,4 @@ exec docker run --rm -v "$HERE:/mod" -w /mod mcr.microsoft.com/dotnet/sdk:8.0 sh
   CSC=$(ls /usr/share/dotnet/sdk/*/Roslyn/bincore/csc.dll | head -1)
   dotnet "$CSC" -nologo -noconfig -nostdlib -target:library -optimize -langversion:7.3 \
     -r:refs/mscorlib.dll -r:refs/System.dll -r:refs/System.Core.dll -r:refs/UnityEngine.dll \
-    -r:refs/Assembly-CSharp.dll -out:dcrmod.dll src/*.cs && chmod a+rw dcrmod.dll'
+    -r:refs/Assembly-CSharp.dll -r:refs/Assembly-CSharp-firstpass.dll -out:dcrmod.dll src/*.cs && chmod a+rw dcrmod.dll'
