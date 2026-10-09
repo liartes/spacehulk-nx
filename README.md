@@ -27,7 +27,8 @@ APK and its expansion file (OBB).
 ### What works
 
 * The whole game: menus, campaign, missions, saves, with the controller.
-* 720p handheld, 900p docked (configurable), about 50-60 fps in missions.
+* 720p handheld, 900p docked (configurable), a steady 30 fps (or up to 60,
+  configurable).
 * Intro movies (with sound), the game's music and sounds at 48 kHz.
 * Fast loading: a mission loads in about 15 seconds.
 
@@ -115,6 +116,7 @@ option explained above it. Among them:
 | Option | Default | |
 | --- | --- | --- |
 | `[display] resolution` | `auto` | 720 handheld, 900 docked; or `720`, `900`, `1080` |
+| `[display] frame_rate` | `30` | `60`: more fluid, 40-60 fps in big missions, twice the CPU and GPU work (heat, battery) |
 | `[graphics] texture_resolution` | `half` | `full` does not fit in memory in missions |
 | `[graphics] pixel_lights` | `0` | `2`: finer lighting, ~15% slower in busy missions; `game`: the top level's 4 |
 | `[graphics] shadow_distance`, `lod_bias` | `100`, `3` | `game` for the game's own top-level values |

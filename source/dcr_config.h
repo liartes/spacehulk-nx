@@ -40,7 +40,7 @@ typedef struct {
   int optimize_obb;   /* [setup] optimize_obb */
   int msaa;           /* [graphics] antialiasing: -1 the game's, else 0/2/4 samples */
   int gpu_pool;       /* [performance] gpu_buffer_pool (sh_gpumem.c) */
-  int swap_interval;  /* [display] frame_rate: 1 = 60 fps, 2 = 30 (sh_egl.c) */
+  int swap_interval;  /* [display] frame_rate: 2 = 30 fps (the default), 1 = 60 (sh_egl.c) */
 } DcrConfig;
 
 /* Read config.ini (writing it with the defaults, or adding missing options,
