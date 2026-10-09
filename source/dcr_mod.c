@@ -232,6 +232,22 @@ static void i_QueueWww(void *url, void *body) {
 
 static void *i_GameRoot(void) { return M.string_new(M.root_domain(), dcr_game_root()); }
 
+uint64_t sh_draw_count(void); /* sh_glcount.c */
+
+/* QualitySettings.shadowDistance and pixelLightCount, whose managed setters
+ * the game's stripped UnityEngine.dll lacks: the icalls sh_quality.c captured */
+extern void (*sh_i_set_shadowDistance)(float v);
+extern void (*sh_i_set_pixelLightCount)(int v);
+static void i_SetShadowDistance(float v) {
+  if (sh_i_set_shadowDistance)
+    sh_i_set_shadowDistance(v);
+}
+static void i_SetPixelLights(int v) {
+  if (sh_i_set_pixelLightCount)
+    sh_i_set_pixelLightCount(v);
+}
+static int64_t i_DrawCount(void) { return (int64_t)sh_draw_count(); }
+
 static int64_t i_TicksMs(void) { return (int64_t)(armTicksToNs(armGetSystemTick()) / 1000000ull); }
 
 /* The Switch's controller screen: players min..max (single Joy-Cons held
@@ -311,6 +327,9 @@ static void register_icalls(void) {
       {"DcrMod.Native::Config", (const void *)i_Config},
       {"DcrMod.Native::GameRoot", (const void *)i_GameRoot},
       {"DcrMod.Native::TicksMs", (const void *)i_TicksMs},
+      {"DcrMod.Native::DrawCount", (const void *)i_DrawCount},
+      {"DcrMod.Native::SetShadowDistance", (const void *)i_SetShadowDistance},
+      {"DcrMod.Native::SetPixelLights", (const void *)i_SetPixelLights},
       {"DcrMod.Native::ControllerApplet", (const void *)i_ControllerApplet},
       {"DcrMod.Native::Rumble", (const void *)i_Rumble},
       {"DcrMod.Native::LaunchReady", (const void *)i_LaunchReady},

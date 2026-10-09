@@ -19,6 +19,23 @@ namespace DcrMod
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern long TicksMs();
 
+        // "section.key" from config.ini, as an int (source/dcr_mod.c)
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public static extern int Config(string key, int dflt);
+
+        // QualitySettings.shadowDistance (its managed setter is stripped from
+        // the game's UnityEngine.dll)
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public static extern void SetShadowDistance(float d);
+
+        // QualitySettings.pixelLightCount (likewise)
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public static extern void SetPixelLights(int n);
+
+        // draw calls so far (source/sh_glcount.c)
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public static extern long DrawCount();
+
         // the game folder on the SD card (sdmc:/switch/spacehulk_nx)
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern string GameRoot();
@@ -41,6 +58,7 @@ namespace DcrMod
             Object.DontDestroyOnLoad(go);
             go.AddComponent<SwitchMenus>();
             go.AddComponent<DoorFix>();
+            go.AddComponent<PerfBench>();
         }
 
         // every 30 frames (source/dcr_mod.c): the game's first scene
