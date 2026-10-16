@@ -50,6 +50,11 @@ APK and its expansion file (OBB).
   were built with them merged into the static scenery, so on the Switch the
   doors opened (line of sight included) but looked shut.
 * Online features (Google Play Games, multiplayer servers) are not available.
+* Optional: `[game] unlock_dlc_campaigns` opens the campaigns this Android
+  build carries but keeps locked -- Sword of Halcyon, Defilement of Honour,
+  Fangs of Fenris (DLC on PC) and Messenger of Purgatory (sold in-app on
+  mobile). It is meant for players who own them; off by default. Harbinger
+  of Torment is not in the Android build.
 
 ---
 
@@ -123,6 +128,7 @@ option explained above it. Among them:
 | `[graphics] antialiasing` | `0` | `2`, `4` or `game` |
 | `[performance] loading_priority` | `high` | how fast Unity takes in what it loads |
 | `[setup] optimize_obb` | `true` | the OBB optimization of the first start |
+| `[game] unlock_dlc_campaigns` | `false` | the DLC campaigns in the build, for players who own them |
 
 ---
 
