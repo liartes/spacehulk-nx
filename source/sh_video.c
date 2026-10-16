@@ -508,6 +508,31 @@ static int skip_pressed(PadState *pad) {
                                     HidNpadButton_Plus | HidNpadButton_Minus)) != 0;
 }
 
+/* framebufferBegin, without its abort: libnx ends the process (2345-0021,
+ * the console restarted) when the window gives no buffer, and it happened
+ * in the middle of the logo movie (hardware, 2026-10-15) after the probe
+ * below had passed. Here a few tries, then NULL: the movie stops and the
+ * game goes on. The buffer is the linear one (framebufferMakeLinear);
+ * framebufferEnd converts and queues it. */
+static void *fb_begin(Framebuffer *fb, u32 *stride) {
+  static int failures;
+  s32 slot;
+  Result rc = 0;
+  for (int t = 0; t < 10; t++) {
+    rc = nwindowDequeueBuffer(fb->win, &slot, NULL);
+    if (R_SUCCEEDED(rc)) {
+      if (t)
+        debugPrintf("[video] a buffer after %d tries\n", t + 1);
+      *stride = fb->stride;
+      return fb->buf_linear;
+    }
+    if (failures++ < 8)
+      debugPrintf("[video] nwindowDequeueBuffer: 0x%x\n", (unsigned)rc);
+    svcSleepThread(10000000ll);
+  }
+  return NULL;
+}
+
 /* The movie, start to end, on this (the engine's) thread, with Unity's
  * surface released. 0 when nothing could be played. */
 static int play(void) {
@@ -526,6 +551,10 @@ static int play(void) {
   Result rr = nwindowReleaseBuffers(nwindowGetDefault());
   if (R_FAILED(rr))
     debugPrintf("[video] releasing the window's buffers: 0x%x\n", (unsigned)rr);
+  /* one picture a refresh whatever [display] frame_rate made the window's
+   * swap interval (2 at 30 fps): Unity sets its own again when it has the
+   * surface back (eglSwapInterval) */
+  nwindowSetSwapInterval(nwindowGetDefault(), 1);
   Framebuffer fb;
   Result rc = framebufferCreate(&fb, nwindowGetDefault(), (u32)fw, (u32)fh, PIXEL_FORMAT_RGBA_8888, 2);
   if (R_FAILED(rc)) {
@@ -625,7 +654,11 @@ static int play(void) {
 
     if (due >= 0) {
       u32 stride;
-      uint32_t *px = framebufferBegin(&fb, &stride);
+      uint32_t *px = fb_begin(&fb, &stride);
+      if (!px) {
+        why = "stopped: the window gives no buffer";
+        break;
+      }
       blit(px, stride, fw, fh, (const uint32_t *)V.rgba[due], V.w, V.h);
       framebufferEnd(&fb); /* presents, at the display's pace */
       mutexLock(&V.lock);
