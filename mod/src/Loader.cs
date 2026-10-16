@@ -67,6 +67,7 @@ namespace DcrMod
         // made again whenever it is gone
         public static void Tick()
         {
+            DlcCampaigns.Tick();
             if (go != null)
                 return;
             Make();

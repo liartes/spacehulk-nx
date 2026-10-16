@@ -32,6 +32,12 @@ static const CfgOpt k_opts[] = {
      "# handheld), 720, 900 or 1080. The Switch scales the picture to the screen\n"
      "# either way; 900 docked keeps the frame rate up on the TV.",
      CFG_CHOICE, "720,900,1080,auto", NULL, 0, 0, 0, 0},
+    {"game", "unlock_dlc_campaigns", "false",
+     "Unlock the campaigns this Android build carries but keeps locked:\n"
+     "# Messenger of Purgatory (sold in-app on mobile) and the PC DLC campaigns\n"
+     "# Sword of Halcyon, Defilement of Honour and Fangs of Fenris. For players\n"
+     "# who own them (Steam DLC, the mobile purchase).",
+     CFG_BOOL, NULL, NULL},
     {"display", "frame_rate", "30",
      "Frame rate cap. 30: a picture every other display refresh, steady -- half\n"
      "# the work a second for the CPU and the GPU, so less heat and power (the\n"
