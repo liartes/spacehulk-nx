@@ -22,7 +22,8 @@ namespace DcrMod
 
         bool on, inMission;
         float next, start, check;
-        int variant = -1, frames0;
+        int variant = -1, frames0, slow;
+        float last;
         long draws0;
         int baseLights;
 
@@ -38,6 +39,10 @@ namespace DcrMod
             if (!on)
                 return;
             float now = Time.realtimeSinceStartup;
+            // a frame over 40 ms: a missed refresh at 30 fps, a visible hitch
+            if (variant >= 0 && last > 0 && now - last > 0.040f)
+                slow++;
+            last = now;
             if (now >= check)
             {
                 check = now + 1f;
@@ -69,7 +74,7 @@ namespace DcrMod
                 int frames = Time.frameCount - frames0;
                 long draws = Native.DrawCount() - draws0;
                 Native.Log("PerfBench: " + Names[variant] + " " + secs.ToString("F1") + " s: " + (frames / secs).ToString("F1") +
-                           " fps, " + (frames > 0 ? draws / frames : 0) + " draws/frame");
+                           " fps, " + (frames > 0 ? draws / frames : 0) + " draws/frame, " + slow + " frames over 40 ms");
             }
             Restore();
             variant = (variant + 1) % Names.Length;
@@ -79,6 +84,7 @@ namespace DcrMod
             start = now;
             next = now + Period;
             frames0 = Time.frameCount;
+            slow = 0;
             draws0 = Native.DrawCount();
         }
 
