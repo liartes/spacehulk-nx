@@ -70,11 +70,12 @@ static const CfgOpt k_opts[] = {
      "Skip the engine's eglMakeCurrent calls that change nothing (its render\n"
      "# thread spent much of its time in them).",
      CFG_BOOL, NULL, &g_cfg.skip_makecurrent},
-    {"graphics", "pixel_lights", "0",
+    {"graphics", "pixel_lights", "2",
      "Dynamic lights drawn per pixel: each one draws every object it touches\n"
-     "# again, and a mission has ~130 of them. 0: all of them per vertex, ~50 fps\n"
-     "# in a busy mission; 2: finer lighting, ~42 fps. game = the quality\n"
-     "# level's (4 at the top level).",
+     "# again, and a mission has ~130 of them. 2 holds 30 fps; 0: all of them\n"
+     "# per vertex, coarser lighting but ~40% fewer draws (for frame_rate 60:\n"
+     "# ~50 fps in a busy mission instead of ~42). game = the quality level's\n"
+     "# (4 at the top level).",
      CFG_CHOICE, "game,0,1,2,3,4", &g_lights_choice},
     {"graphics", "shadow_distance", "100",
      "How far shadows are drawn. game = the quality level's (300 at the top level).",
@@ -156,7 +157,7 @@ static const CfgOpt k_opts[] = {
      "Write every sound the game plays (and its volume faders) to debug.log\n"
      "# (for a bug report about audio).",
      CFG_BOOL, NULL, &g_cfg.log_sounds},
-    /* [config] version = 2: the engine's row, last (CfgTable.version) */
+    /* [config] version = 3: the engine's row, last (CfgTable.version) */
 };
 
 void dcr_window_set_size(int w, int h); /* rt_window.c */
@@ -205,10 +206,11 @@ static void apply(void) {
 
 /* Changed defaults, moved in files written by an older build. */
 static const CfgMigrate k_migrate[] = {
-    /* v0.1.3: no per-pixel lights by default -- in a busy mission 2 of them
-     * meant ~40% more draw calls on the render thread, 42 fps -> 50
-     * (mod/src/PerfBench.cs, hardware 2026-10-09) */
-    {"graphics", "pixel_lights", "2", "0", 2},
+    /* v0.1.4: 2 per-pixel lights again -- v0.1.3 moved them to 0 for 60 fps
+     * (~40% fewer draws, mod/src/PerfBench.cs); at the 30 fps default 2
+     * holds the frame rate (hardware, 2026-10-20). The 0 written by v0.1.3
+     * goes back to 2 (an older file's 2 is kept: no row moves it). */
+    {"graphics", "pixel_lights", "0", "2", 3},
 };
 
 static const CfgTable k_table = {
@@ -216,7 +218,7 @@ static const CfgTable k_table = {
     .nopts = CFG_COUNT(k_opts),
     .migrate = k_migrate,
     .nmigrate = CFG_COUNT(k_migrate),
-    .version = 2,
+    .version = 3,
     .apply = apply,
 };
 

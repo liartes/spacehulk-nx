@@ -40,10 +40,13 @@ APK and its expansion file (OBB).
   minutes): its textures start at the size the port draws them, so it is
   about 40% smaller and loads faster. The picture is the same.
 * Unity's multithreaded rendering is enabled, and the heaviest settings of
-  the top quality level are toned down: the dynamic lights are drawn per
-  vertex (a mission has ~130 of them, each drawn per pixel draws what it
-  touches again), shorter shadow distance, less level of detail. All of it
-  can be changed in `config.ini`.
+  the top quality level are toned down: 2 dynamic lights drawn per pixel
+  instead of 4 (a mission has ~130 of them, each drawn per pixel draws what
+  it touches again), shorter shadow distance, less level of detail. All of
+  it can be changed in `config.ini`.
+* The undo button takes 0.2 s instead of 2.4 s: after the model is restored,
+  the game waited a frame for each unit of the mission while rebuilding the
+  board, even for the units already there.
 * The video options the Switch cannot honour (resolution, full screen, v-sync)
   are hidden from the game's menu.
 * The doors' leaves are drawn where their animation puts them: the missions
@@ -123,7 +126,7 @@ option explained above it. Among them:
 | `[display] resolution` | `auto` | 720 handheld, 900 docked; or `720`, `900`, `1080` |
 | `[display] frame_rate` | `30` | `60`: more fluid, 40-60 fps in big missions, twice the CPU and GPU work (heat, battery) |
 | `[graphics] texture_resolution` | `half` | `full` does not fit in memory in missions |
-| `[graphics] pixel_lights` | `0` | `2`: finer lighting, ~15% slower in busy missions; `game`: the top level's 4 |
+| `[graphics] pixel_lights` | `2` | `0`: coarser lighting, ~40% fewer draws (for `frame_rate 60`); `game`: the top level's 4 |
 | `[graphics] shadow_distance`, `lod_bias` | `100`, `3` | `game` for the game's own top-level values |
 | `[graphics] antialiasing` | `0` | `2`, `4` or `game` |
 | `[performance] loading_priority` | `high` | how fast Unity takes in what it loads |
