@@ -49,6 +49,8 @@ namespace DcrMod
         {
             UndoSave.Install();
             FastSerialize.Install();
+            UndoTrace.Install();
+            FastViewUpdate.Install();
             Make();
         }
 
@@ -59,6 +61,7 @@ namespace DcrMod
             go.AddComponent<SwitchMenus>();
             go.AddComponent<DoorFix>();
             go.AddComponent<PerfBench>();
+            go.AddComponent<UndoTrace>();
         }
 
         // every 30 frames (source/dcr_mod.c): the game's first scene

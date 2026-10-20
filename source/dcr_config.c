@@ -148,6 +148,10 @@ static const CfgOpt k_opts[] = {
      "# shadows, animation culling) and write each one's frame rate and draw\n"
      "# calls to debug.log (mod/src/PerfBench.cs). For tuning only.",
      CFG_BOOL, NULL, NULL},
+    {"debug", "undo_trace", "false",
+     "Time each step of the undo button and write it to debug.log, up to the\n"
+     "# player's turn again (mod/src/UndoTrace.cs).",
+     CFG_BOOL, NULL, NULL},
     {"debug", "log_sounds", "false",
      "Write every sound the game plays (and its volume faders) to debug.log\n"
      "# (for a bug report about audio).",
