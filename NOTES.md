@@ -166,6 +166,64 @@ enums"):
 Code that includes FFmpeg headers needs `-fno-short-enums`
 ([ffmpeg32](https://github.com/aks796/ffmpeg32) is built that way).
 
+### Profile-guided Mesa
+
+Mesa is half of the render thread, and the render thread limits the frame
+rate. mesa32's `build_mesa32.sh` builds Mesa and libdrm_nouveau in two passes
+(`MESA_PGO=gen`, then `MESA_PGO=use`), each in its own `build-pgo-*/` and
+`prefix-pgo-*/`; the plain build is unchanged.
+
+devkitARM's libgcov is built without a C library: `__gcov_dump` writes
+nothing, and its value profilers are empty. So the instrumented build puts
+its counters in the `gcov_info` section (`-fprofile-info-section`) without
+value profiles (`-fno-profile-values`: branch and call counts), and
+`source/sh_pgo.c` writes them out every 60 s as a gcov stream
+(`__gcov_info_to_gcda`, GCC's interface for freestanding programs) to
+`mesa-pgo.gcov` in the game folder.
+
+```bash
+(cd ../mesa32 && MESA_PGO=gen ./build.sh)
+cp -a portlibs32 portlibs32-pgo-gen && cp ../mesa32/prefix-pgo-gen/lib/*.a portlibs32-pgo-gen/lib/
+./build.sh SH_PGO=gen && launcher/build.sh     # the training NRO
+# play: menus, a mission or two, loading, the AI's turns; then
+tools/pgo/merge_profile.sh mesa-pgo.gcov       # -> ../mesa32/pgo-profile/*.gcda
+(cd ../mesa32 && MESA_PGO=use ./build.sh)      # -> ../mesa32/prefix-pgo-use/
+```
+
+The training run of 2026-11-06 (14 minutes: menus, two mission loads, play,
+the AI's turns) is kept as its stream, `tools/pgo/mesa-pgo.gcov.xz`: `xz -dk`
+it and run `merge_profile.sh` on it to get the same profile back. A release
+build links the result: `./build.sh PORTLIBS=/work/portlibs32-pgo-use`, a
+copy of `portlibs32/` with `prefix-pgo-use/lib/*.a` over it.
+
+The use pass keeps the code the training never ran optimized as before
+(`-fprofile-partial-training`) and accepts counters the threads raced on
+(`-fprofile-correction`). `-fprofile-prefix-path` keeps the profile's file
+names relative to each build folder, so both passes agree on them.
+
+### Mono rebuilt with optimization
+
+The game's `libmono.so` is Unity's Mono 2.6 fork
+([Unity-Technologies/mono](https://github.com/Unity-Technologies/mono),
+branch `unity-5.3`), built by its `external/buildscripts/build_runtime_android.sh`
+whose CFLAGS carry no `-O`: GCC's `-O0`, 17-29% of the instructions spilling
+to the stack. Commit `28bc0dcd7b` (2016-02-19) built that way matches the
+game's library: all 910 exports the same size, the same `.data` and `.bss`
+(only the `--prefix` paths differ, and the script uses Unity's).
+
+`tools/mono/build_libmono.sh <checkout> <out> "-O2 -fno-strict-aliasing"`
+builds it optimized (NDK r10e, GCC 4.8, in an ubuntu:16.04 container). One
+change: `mono_arch_flush_icache` is kept out of line, because `-O2` inlined
+it, raw Linux `cacheflush` svc included, into five callers the port's hook
+never sees. `tools/mono/mono_offsets.py` reads the addresses the GC bridge
+needs from the unstripped build into `source/mono_offsets_rebuilt.h`;
+`mono_rt.c` uses whichever set's guards match the loaded library. The release
+zip carries the stripped library as `mono-opt/libmono.so`, with
+`tools/mono/README.txt` and `COPYING.LIB` (LGPL 2).
+
+Hardware 2026-11-06: garbage collections 24.2 -> 15.9 ms on average, the
+longest 95 -> 53 ms, the world stopped 4.2% -> 2.2% of a mission.
+
 ### Toolchain flags
 
 ```text

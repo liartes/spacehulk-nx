@@ -43,6 +43,9 @@ typedef struct {
   int swap_interval;  /* [display] frame_rate: 2 = 30 fps (the default), 1 = 60 (sh_egl.c) */
   int large_pages;    /* [performance] large_pages (sh_bigpages.c) */
   int tlb_probe;      /* [debug] tlb_probe (sh_tlbprobe.c) */
+  int profile_hitches; /* [debug] profile_hitches (dcr_prof.c) */
+  int optimized_mono; /* [performance] optimized_mono (dcr_main.c mono_lib) */
+  int unload_every_s; /* [performance] unload_assets_every_s (dcr_icall_hooks.c): 0 = the game's */
 } DcrConfig;
 
 /* Read config.ini (writing it with the defaults, or adding missing options,

@@ -51,6 +51,24 @@ APK and its expansion file (OBB).
   instead of 4 KB pages: the CPU finds their addresses in its translation
   cache (TLB) instead of looking them up in memory, which cost 30-80 ns each
   time (measured on the console). `[performance] large_pages` turns it off.
+* Smoother missions: the game asked Unity to unload its unused assets nearly
+  twice a second (every kill, every sound, a leftover from the iOS version),
+  and each time froze ~90 ms while Unity walked every object -- the hitches
+  when animations start or end. One a minute is let through
+  (`[performance] unload_assets_every_s`).
+* Mono, the runtime of the game's C#, runs from `mono-opt/libmono.so`:
+  Unity's own Mono 2.6 for this game, from the same source, rebuilt with
+  optimization (Unity shipped it unoptimized). Its garbage collections freeze
+  the game about half as long. `[performance] optimized_mono = false` goes
+  back to the game's.
+* Mesa, the graphics driver, is built with a profile of the game
+  (profile-guided optimization): ~20% less time per frame on the render
+  thread, in missions at 60 fps.
+* The program binaries Unity caches for its shaders are dropped when the
+  graphics driver changes: one made by another driver build was refused, and
+  the one Unity linked again in its place drew some textures flat grey
+  (weapons). A port update with a new driver recompiles the shaders once (a
+  longer first mission load).
 * The video options the Switch cannot honour (resolution, full screen, v-sync)
   are hidden from the game's menu.
 * The doors' leaves are drawn where their animation puts them: the missions
@@ -82,6 +100,7 @@ Copy them to the SD card like this:
 
 ```
 sd:/switch/spacehulk_nx/spacehulk_nx.nro
+sd:/switch/spacehulk_nx/mono-opt/libmono.so      (from the release zip)
 sd:/switch/spacehulk_nx/<your APK, any name>.apk
 sd:/switch/spacehulk_nx/obb/main.7.com.hoplite.spacehulk.obb
 ```
@@ -135,6 +154,8 @@ option explained above it. Among them:
 | `[graphics] antialiasing` | `0` | `2`, `4` or `game` |
 | `[performance] loading_priority` | `high` | how fast Unity takes in what it loads |
 | `[setup] optimize_obb` | `true` | the OBB optimization of the first start |
+| `[performance] optimized_mono` | `true` | Mono from `mono-opt/libmono.so`; `false`: the game's |
+| `[performance] unload_assets_every_s` | `60` | how often the game may unload unused assets; `0`: whenever it asks (hitches) |
 | `[game] unlock_dlc_campaigns` | `false` | the DLC campaigns in the build, for players who own them |
 
 ---
@@ -221,6 +242,11 @@ parts are the `sh_*.c` files in `source/`:
 * The Switch and Vita `.so` loader work of Andy Nguyen (TheOfficialFloW) and
   fgsfds; [vita2hos](https://github.com/xerpi/vita2hos) by xerpi; libnx by the
   switchbrew authors; Mesa; FFmpeg (LGPL); miniz.
+* `mono-opt/libmono.so`: Unity Technologies' Mono 2.6 fork
+  ([github.com/Unity-Technologies/mono](https://github.com/Unity-Technologies/mono),
+  branch `unity-5.3`, commit `28bc0dcd7b`), the runtime under the LGPL 2
+  (`mono-opt/COPYING.LIB`), rebuilt by `tools/mono/build_libmono.sh` (see its
+  `mono-opt/README.txt`).
 * Space Hulk is © Hoplite Research / Full Control; Warhammer 40,000 and Space
   Hulk are trademarks of Games Workshop. This project is not affiliated with
   them.

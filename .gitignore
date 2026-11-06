@@ -1,4 +1,8 @@
 build/
+build-pgo-gen/
+.link-variant
+portlibs32-pgo-gen/
+portlibs32-pgo-use/
 *.nsp
 *.elf
 *.build

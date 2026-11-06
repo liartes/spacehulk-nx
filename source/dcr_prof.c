@@ -39,11 +39,13 @@ size_t dcr_readable(uint32_t p, size_t want);                   /* exc_handler.c
 int dcr_mono_method_name(uint32_t addr, char *buf, size_t cap); /* mono_rt.c */
 uint64_t dcr_gc_stopped_ns(void);                               /* mono_rt.c */
 
-#define START_MS 100
+/* frames over START_MS are sampled every PERIOD_NS; REPORT_MS and longer are
+ * reported. [debug] profile_hitches lowers them for the short hitches of a
+ * 30 fps frame (a 33 ms frame; one dropped frame makes 67 ms) */
+static uint32_t START_MS = 100, REPORT_MS = 200;
+static int64_t PERIOD_NS = 10000000ll;
 #define WINDOW_MS 10000        /* [debug] profile_continuous: one report per window */
 #define WINDOW_PERIOD_NS 5000000ll
-#define REPORT_MS 200
-#define PERIOD_NS 10000000ll
 #define MAX_SAMPLES 16384
 #define MAX_THREADS 64
 #define DEPTH 24
@@ -191,7 +193,12 @@ static void sampler(void *arg) {
 
 void dcr_prof_start(void) {
   g_window = dcr_config()->profile_window;
-  if (!dcr_config()->profile && !g_window)
+  if (dcr_config()->profile_hitches) {
+    START_MS = 40;
+    REPORT_MS = 60;
+    PERIOD_NS = 2000000ll;
+  }
+  if (!dcr_config()->profile && !dcr_config()->profile_hitches && !g_window)
     return;
   g_main_handle = envGetMainThreadHandle();
   g_s = malloc(sizeof(Sample) * MAX_SAMPLES);
@@ -203,7 +210,7 @@ void dcr_prof_start(void) {
     debugPrintf("[prof] continuous: every thread is sampled every %lld ms, one report per %d s\n",
                 WINDOW_PERIOD_NS / 1000000, WINDOW_MS / 1000);
   else
-    debugPrintf("[prof] every thread is sampled every %lld ms in frames over %d ms; frames of %d ms "
+    debugPrintf("[prof] every thread is sampled every %lld ms in frames over %u ms; frames of %u ms "
                 "or more are reported\n", PERIOD_NS / 1000000, START_MS, REPORT_MS);
 }
 

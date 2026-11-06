@@ -120,6 +120,26 @@ static int load_module(so_module *mod, const char *name) {
   return 0;
 }
 
+/* [performance] optimized_mono: Unity's Mono rebuilt with optimization
+ * (tools/mono/build_libmono.sh: the game's is -O0) from mono-opt/libmono.so
+ * -- the same name, which libunity dlopen()s -- when it is there. mono_rt.c
+ * picks the matching set of addresses by their guards. */
+static const char *mono_lib(void) {
+  static char rel[64];
+  char path[512];
+  snprintf(rel, sizeof rel, "mono-opt/%s", DCR_LIB_MONO);
+  snprintf(path, sizeof path, "%s/%s", dcr_game_root(), rel);
+  FILE *f = dcr_config()->optimized_mono ? fopen(path, "rb") : NULL;
+  if (f) {
+    fclose(f);
+    debugPrintf("[boot] libmono: the optimized build (%s)\n", rel);
+    return rel;
+  }
+  if (dcr_config()->optimized_mono)
+    debugPrintf("[boot] libmono: no %s, the game's\n", rel);
+  return DCR_LIB_MONO;
+}
+
 /* Imports are bound once every module is loaded: Unity 5.6's libunity
  * imports libmono's exports directly (DT_NEEDED libmono.so). */
 static void resolve_module(so_module *mod, const char *name) {
@@ -132,6 +152,10 @@ int port_load(const char *apk) {
   /* libmain/libunity/libmono and classes.txt, from game.apk when they are
    * missing or it has changed; the OBB check (dcr_setup_plan.c) */
   dcr_setup_from_apk(apk);
+  /* Unity's shader cache emptied after an update: binaries of another Mesa
+   * build are refused, and Unity's relink after that is broken (sh_shadercache.c) */
+  void sh_shadercache_check(void);
+  sh_shadercache_check();
   /* Mesa's KHR_no_error, for every context the engine makes: per-function
    * self samples of a mission (hardware 2026-10-06, prof_self.txt) had the
    * render thread 49% in Mesa, its uniform and draw validation among the
@@ -153,7 +177,7 @@ int port_load(const char *apk) {
   }
   if (load_module(&main_mod, DCR_LIB_MAIN) < 0 ||
       load_module(&unity_mod, DCR_LIB_UNITY) < 0 ||
-      load_module(&mono_mod, DCR_LIB_MONO) < 0)
+      load_module(&mono_mod, mono_lib()) < 0)
     fatal_error("Could not load the game libraries from %s.\n\n"
                 "They are unpacked from the APK (lib/armeabi-v7a/) on launch: delete\n"
                 "libmain.so, libunity.so, libmono.so and .setup there to unpack them again.",
@@ -199,6 +223,8 @@ int port_load(const char *apk) {
     fatal_error("Could not reserve executable memory for Mono's JIT.");
   dcr_mono_hook_exceptions(); /* names the scripts behind "NullReferenceException" lines */
   dcr_mod_jitlog_install();   /* a debug aid: <root>/jitlog maps the JIT code (dcr_mod.c) */
+  void sh_pgo_start(void);
+  sh_pgo_start(); /* make SH_PGO=gen only: Mesa's profile to the SD card (sh_pgo.c) */
   if (dcr_config()->tlb_probe) {
     void sh_tlbprobe_start(void);
     sh_tlbprobe_start(); /* [debug] tlb_probe: a minute from now (sh_tlbprobe.c) */

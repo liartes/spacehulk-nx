@@ -16,7 +16,7 @@
 
 /* Space Hulk: the Disney Crossy Road features these fields drive (IL
  * patches, the C# mod, FMOD patches at that build's offsets) stay off. */
-static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1, .skip_makecurrent = 1, .pin_threads = 1, .gc_heap_mb = 0, .gl_no_error = 1, .optimize_obb = 1, .gpu_pool = 1, .swap_interval = 2, .large_pages = 1};
+static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1, .skip_makecurrent = 1, .pin_threads = 1, .gc_heap_mb = 0, .gl_no_error = 1, .optimize_obb = 1, .gpu_pool = 1, .swap_interval = 2, .large_pages = 1, .unload_every_s = 60, .optimized_mono = 1};
 static int g_load_choice = 4; /* "high" */
 static int g_fps_choice = 1; /* "30" */
 static int g_lights_choice = 1, g_shadow_choice = 3, g_lod_choice = 3; /* "0", "100", "3" */
@@ -98,6 +98,20 @@ static const CfgOpt k_opts[] = {
      "# less often. 0: Mono's own -- keep it: 96 took ~85 MB from the 1 GB the\n"
      "# game has, and long sessions ran out of memory (crashes).",
      CFG_INT, "0,32,48,64,96,128,192", &g_cfg.gc_heap_mb},
+    {"performance", "optimized_mono", "true",
+     "Run Mono (the game's C#: its JIT, garbage collector, calls into the engine)\n"
+     "# from mono-opt/libmono.so here: Unity's own Mono 2.6, the same source,\n"
+     "# rebuilt with optimization (the game ships it unoptimized). Its garbage\n"
+     "# collections freeze the game half as long. Off, or without the file: the\n"
+     "# game's.",
+     CFG_BOOL, NULL, &g_cfg.optimized_mono},
+    {"performance", "unload_assets_every_s", "60",
+     "The game asks Unity to unload its unused assets nearly twice a second in\n"
+     "# missions (every kill, every sound module...), and each time the game\n"
+     "# freezes ~90 ms while Unity walks every object: the hitches when\n"
+     "# animations start or end. Let at most one through every N seconds (new\n"
+     "# levels still unload on their own); 0: the game's every call.",
+     CFG_INT, "0,15,30,60,120,300", &g_cfg.unload_every_s},
     CFG_ROW_BOOST("CPU at 1785 MHz while the game starts and inside loading frames (those\n"
                   "# over 50 ms), normal otherwise.",
                   &g_cfg.boost),
@@ -132,6 +146,11 @@ static const CfgOpt k_opts[] = {
      "Write where the time goes in frames over 100 ms (loading) to debug.log.\n"
      "# It slows those frames down a little: leave off unless asked for a log.",
      CFG_BOOL, NULL, &g_cfg.profile},
+    {"debug", "profile_hitches", "false",
+     "Write where the time goes in every hitch (frames over 60 ms: one dropped\n"
+     "# frame at 30 fps) to debug.log: Mono's GC, file reads, the busy threads\n"
+     "# and their functions. Costs a little in those frames only.",
+     CFG_BOOL, NULL, &g_cfg.profile_hitches},
     {"debug", "profile_continuous", "false",
      "Sample every thread every 5 ms, all the time, and write where the time\n"
      "# went to debug.log every 10 s (native code, call sites, C# methods). For\n"

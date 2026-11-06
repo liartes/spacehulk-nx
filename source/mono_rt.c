@@ -79,23 +79,61 @@ static Result get_thread_context(KThreadContext *ctx, Handle h) {
 
 static uintptr_t mono_base(void) { return (uintptr_t)mono_mod.load_virtbase; }
 
+/* The libmono addresses the bridge needs, one set per known libmono: the
+ * game's (dcr_offsets.h, derived from the stripped -O0 binary) and the one
+ * rebuilt with optimization from Unity's Mono fork (tools/mono/: [performance]
+ * optimized_mono; values from tools/mono/mono_offsets.py). The set used is the
+ * first whose three guards match the loaded code. */
+typedef struct {
+  const char *name;
+  uint32_t flush, flush_g[4], handler, handler_g[4], lookup, lookup_g[4], got_stop, got_ack;
+} MonoOffsets;
+static MonoOffsets k_mono_sets[] = {
+    /* the game's guards are copied in from dcr_offsets.h (pick_mono_set) */
+    {"the game's", DCR_MONO_RVA_FlushIcache, {0}, DCR_MONO_RVA_SuspendHandler, {0},
+     DCR_MONO_RVA_LookupThread, {0}, DCR_MONO_GOT_StopCount, DCR_MONO_GOT_AckSem},
+#include "mono_offsets_rebuilt.h"
+};
+static const MonoOffsets *g_mo;
+
+static int guard_is(uint32_t rva, const uint32_t g[4]) {
+  if (rva + 16 > mono_mod.load_size)
+    return 0;
+  const uint32_t *w = (const uint32_t *)(mono_base() + rva);
+  return w[0] == g[0] && w[1] == g[1] && w[2] == g[2] && w[3] == g[3];
+}
+
+static const MonoOffsets *pick_mono_set(void) {
+  memcpy(k_mono_sets[0].flush_g, DCR_MONO_GUARD_FlushIcache, 16);
+  memcpy(k_mono_sets[0].handler_g, DCR_MONO_GUARD_SuspendHandler, 16);
+  memcpy(k_mono_sets[0].lookup_g, DCR_MONO_GUARD_LookupThread, 16);
+  for (unsigned i = 0; i < sizeof k_mono_sets / sizeof k_mono_sets[0]; i++) {
+    const MonoOffsets *o = &k_mono_sets[i];
+    if (guard_is(o->flush, o->flush_g) && guard_is(o->handler, o->handler_g) && guard_is(o->lookup, o->lookup_g)) {
+      debugPrintf("[mono] libmono: %s (%u KB)\n", o->name, (unsigned)(mono_mod.load_size >> 10));
+      return o;
+    }
+  }
+  debugPrintf("[mono] libmono: no known set of addresses matches it\n");
+  return &k_mono_sets[0]; /* its guards fail below: logged, nothing armed */
+}
+
 int dcr_mono_install(void) {
   int ok = 1;
   /* 1. cache maintenance */
-  if (!dcr_hook(&mono_mod, DCR_MONO_RVA_FlushIcache, DCR_MONO_GUARD_FlushIcache, (void *)jit_flush,
+  g_mo = pick_mono_set();
+  if (!dcr_hook(&mono_mod, g_mo->flush, g_mo->flush_g, (void *)jit_flush,
                 "mono_arch_flush_icache")) {
     debugPrintf("[mono] WARNING: JIT'd code will hit `svc 0` on its first flush\n");
     ok = 0;
   }
 
   /* 2. GC bridge */
-  if (dcr_guard_ok(&mono_mod, DCR_MONO_RVA_SuspendHandler, DCR_MONO_GUARD_SuspendHandler,
-                   "GC_suspend_handler") &&
-      dcr_guard_ok(&mono_mod, DCR_MONO_RVA_LookupThread, DCR_MONO_GUARD_LookupThread,
-                   "GC_lookup_thread")) {
-    g_lookup = (fn_lookup)(mono_base() + DCR_MONO_RVA_LookupThread);
-    g_stop_count = (volatile uint32_t *)*(uint32_t *)(mono_base() + DCR_MONO_GOT_StopCount);
-    g_ack_sem = (void *)*(uint32_t *)(mono_base() + DCR_MONO_GOT_AckSem);
+  if (dcr_guard_ok(&mono_mod, g_mo->handler, g_mo->handler_g, "GC_suspend_handler") &&
+      dcr_guard_ok(&mono_mod, g_mo->lookup, g_mo->lookup_g, "GC_lookup_thread")) {
+    g_lookup = (fn_lookup)(mono_base() + g_mo->lookup);
+    g_stop_count = (volatile uint32_t *)*(uint32_t *)(mono_base() + g_mo->got_stop);
+    g_ack_sem = (void *)*(uint32_t *)(mono_base() + g_mo->got_ack);
     g_sem_post = (fn_sem_post)dcr_import_lookup("sem_post");
     g_gc_ready = g_sem_post && g_stop_count && g_ack_sem;
   }

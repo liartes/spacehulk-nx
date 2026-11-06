@@ -46,6 +46,7 @@
 #include "dcr_config.h"
 #include "util.h"
 
+
 /* Mono 2.x, 32-bit: MonoArray = {vtable, sync, bounds, max_length, data...};
  * MonoString = {vtable, sync, int length, uint16 chars[]}. */
 static uint32_t mono_array_len(const void *a) { return a ? *(const uint32_t *)((const char *)a + 12) : 0; }
@@ -294,7 +295,45 @@ static int same_icall(const char *reg, const char *want) {
   return !strncmp(reg, want, n) && (reg[n] == 0 || reg[n] == '(');
 }
 
+/* Resources.UnloadUnusedAssets, at most once every [performance]
+ * unload_assets_every_s seconds (hardware 2026-11-06, [debug] profile_hitches).
+ * Each call makes Unity stop the world and walk every managed object
+ * (mono_unity_liveness_calculation_*: ~90 ms), and the game asks for one all
+ * the time: on every kill (SHWeapon), in MemoryManager.TrySmartMemoryCleaning
+ * (~20 call sites), and ForceGarbageRecolector every 33 ms -- ~1.75 a second
+ * in missions, the hitches when animations start or end. A skipped call
+ * returns null: every caller drops the AsyncOperation (or yields it, and
+ * null waits one frame). Scene loads still unload on their own. */
+typedef void *(*unload_fn)(void);
+static unload_fn g_real_unload;
+static uint64_t g_unload_last;
+static uint32_t g_unload_done, g_unload_skipped;
+static uint64_t g_unload_report;
+
+static void *unload_unused_hook(void) {
+  const uint64_t now = armTicksToNs(armGetSystemTick());
+  const int every = dcr_config()->unload_every_s;
+  if (every > 0 && g_unload_last && now - g_unload_last < (uint64_t)every * 1000000000ull) {
+    g_unload_skipped++;
+    if (now - g_unload_report >= 60000000000ull) { /* a summary a minute at most */
+      g_unload_report = now;
+      debugPrintf("[gc] Resources.UnloadUnusedAssets: %u skipped, %u run so far (one per %d s)\n",
+                  (unsigned)g_unload_skipped, (unsigned)g_unload_done, every);
+    }
+    return NULL;
+  }
+  g_unload_last = now;
+  g_unload_done++;
+  return g_real_unload();
+}
+
 static void add_icall(const char *name, const void *fn) {
+  if (name && same_icall(name, "UnityEngine.Resources::UnloadUnusedAssets") &&
+      fn != (const void *)unload_unused_hook && dcr_config()->unload_every_s > 0) {
+    g_real_unload = (unload_fn)fn;
+    fn = (const void *)unload_unused_hook;
+    debugPrintf("[icall] wrapped %s (at most one per %d s)\n", name, dcr_config()->unload_every_s);
+  }
   for (unsigned i = 0; i < sizeof g_wrap / sizeof g_wrap[0]; i++)
     if (name && same_icall(name, g_wrap[i].name) && fn != g_wrap[i].wrapper &&
         (!g_wrap[i].sounds || dcr_config()->log_sounds ||
