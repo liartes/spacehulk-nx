@@ -5,7 +5,7 @@
 #---------------------------------------------------------------------------------
 APP_TITLE    := Space Hulk
 APP_AUTHOR   := Liartes
-APP_VERSION  := 0.1.4
+APP_VERSION  := 0.1.5
 TARGET       := spacehulk_nx
 PORT_PAYLOAD := spacehulk_nx
 LAUNCHER_SOURCES :=
