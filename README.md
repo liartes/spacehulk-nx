@@ -79,7 +79,10 @@ APK and its expansion file (OBB).
   build carries but keeps locked -- Sword of Halcyon, Defilement of Honour,
   Fangs of Fenris (DLC on PC) and Messenger of Purgatory (sold in-app on
   mobile). It is meant for players who own them; off by default. Harbinger
-  of Torment is not in the Android build.
+  of Torment is not in the Android build. Known issue in Fangs of Fenris:
+  some marine icons of the tactical view (the axe-armed ones) show as plain
+  magenta squares -- their asset is missing from the Android build (the same
+  in v0.1.4).
 
 ---
 
