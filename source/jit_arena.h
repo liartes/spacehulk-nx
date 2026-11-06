@@ -2,8 +2,10 @@
 #ifndef DCR_JIT_ARENA_H
 #define DCR_JIT_ARENA_H
 #include <stddef.h>
+#include <stdint.h>
 
 int jit_arena_init(void);
+uintptr_t jit_arena_rx(size_t *size);    /* the RX view (tlb probe); 0 before init */
 void *jit_alloc(size_t len);                 /* returns an RX address */
 int jit_free(void *rx, size_t len);
 int jit_contains(const void *p);             /* p inside the RX view */

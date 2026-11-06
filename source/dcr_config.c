@@ -16,7 +16,7 @@
 
 /* Space Hulk: the Disney Crossy Road features these fields drive (IL
  * patches, the C# mod, FMOD patches at that build's offsets) stay off. */
-static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1, .skip_makecurrent = 1, .pin_threads = 1, .gc_heap_mb = 0, .gl_no_error = 1, .optimize_obb = 1, .gpu_pool = 1, .swap_interval = 2};
+static DcrConfig g_cfg = {.res_w = 1280, .res_h = 720, .boost = 1, .tex_limit = 1, .msaa = 0, .threaded = 1, .read_buf_kb = 32, .obb_shared = 1, .log_buttons = 0, .mix_48k = 1, .voices64 = 1, .skip_makecurrent = 1, .pin_threads = 1, .gc_heap_mb = 0, .gl_no_error = 1, .optimize_obb = 1, .gpu_pool = 1, .swap_interval = 2, .large_pages = 1};
 static int g_load_choice = 4; /* "high" */
 static int g_fps_choice = 1; /* "30" */
 static int g_lights_choice = 1, g_shadow_choice = 3, g_lod_choice = 3; /* "0", "100", "3" */
@@ -110,6 +110,11 @@ static const CfgOpt k_opts[] = {
      "# allocations: mixed in one heap they fragmented it (out-of-memory crashes\n"
      "# when a new mission loads).",
      CFG_BOOL, NULL, &g_cfg.gpu_pool},
+    {"performance", "large_pages", "true",
+     "Map the game's code (libunity, libmono) and Mono's compiled code in 2 MB\n"
+     "# blocks instead of 4 KB pages: far fewer TLB misses on the CPU. Off: 4 KB\n"
+     "# pages, as up to v0.1.4.",
+     CFG_BOOL, NULL, &g_cfg.large_pages},
     {"performance", "read_buffer_kb", "32",
      "Read buffer of the game's other files, in KB (each refill is one request\n"
      "# to the SD card). 0: the C library's own, 1 KB.",
@@ -153,6 +158,12 @@ static const CfgOpt k_opts[] = {
      "Time each step of the undo button and write it to debug.log, up to the\n"
      "# player's turn again (mod/src/UndoTrace.cs).",
      CFG_BOOL, NULL, NULL},
+    {"debug", "tlb_probe", "false",
+     "A minute after the start, measure the cost of TLB misses in the game's\n"
+     "# code, Mono's compiled code and the heap, three times 30 s apart, and\n"
+     "# write it to debug.log (\"[tlb]\" lines, sh_tlbprobe.c). Uses 32 MB for\n"
+     "# about two minutes. For tuning only.",
+     CFG_BOOL, NULL, &g_cfg.tlb_probe},
     {"debug", "log_sounds", "false",
      "Write every sound the game plays (and its volume faders) to debug.log\n"
      "# (for a bug report about audio).",

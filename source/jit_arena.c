@@ -40,6 +40,7 @@
 #include "bionic.h"
 #include "bionic_pthread.h"
 #include "jit_arena.h"
+#include "sh_bigpages.h"
 #include "selfproc.h"
 #include "util.h"
 
@@ -136,6 +137,12 @@ static void jit_self_test(void) {
   jit_flush((void *)rx, 8);
 }
 
+/* The RX view, for [debug] tlb_probe (sh_tlbprobe.c); 0 before init. */
+uintptr_t jit_arena_rx(size_t *size) {
+  *size = g_ready ? g_size : 0;
+  return g_ready ? g_rx : 0;
+}
+
 int jit_arena_init(void) {
   if (g_ready)
     return 0;
@@ -169,7 +176,10 @@ int jit_arena_init(void) {
       debugPrintf("[jit] emulator: no alias for the arena (0x%x): rewritten JIT code may run stale\n", rc);
     }
   } else {
+    /* [performance] large_pages: source and both views 2 MB-aligned (sh_bigpages.c) */
+    sh_bigpages_begin();
     Result rc = jitCreate(&g_jit, g_size);
+    sh_bigpages_end();
     if (R_FAILED(rc)) {
       debugPrintf("[jit] jitCreate(%u MB) failed 0x%x\n", (unsigned)(g_size >> 20), rc);
       return -1;
@@ -181,6 +191,8 @@ int jit_arena_init(void) {
     }
     g_rx = (uintptr_t)jitGetRxAddr(&g_jit);
     g_rw = (uintptr_t)jitGetRwAddr(&g_jit);
+    sh_bigpages_report("JIT arena rx", g_rx, (uintptr_t)g_jit.src_addr, g_size);
+    sh_bigpages_report("JIT arena rw", g_rw, (uintptr_t)g_jit.src_addr, g_size);
   }
   if (g_emu_backing) {
     emu_book_init();

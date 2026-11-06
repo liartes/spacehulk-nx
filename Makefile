@@ -16,6 +16,10 @@ PORT_NPDM_PROGRAM_ID := 0x0100000000005348
 # --enable-parser=h264 --enable-decoder=aac --enable-parser=aac"), its lib/
 # and include/ in portlibs32/
 PORT_LIBS  := -L$(CURDIR)/portlibs32/lib -lavformat -lavcodec -lavutil
+# 2 MB blocks for the game's code and the JIT arena (source/sh_bigpages.c):
+# the runtime's loader and libnx's jitCreate get aligned addresses and staging
+# buffers through these two, without changing the runtime
+PORT_LDFLAGS := -Wl,--wrap=virtmemFindCodeMemory -Wl,--wrap=__libnx_aligned_alloc
 include runtime/runtime.mk
 
 # FFmpeg's headers want int-sized enums (devkitARM's default is short)

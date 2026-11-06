@@ -47,6 +47,10 @@ APK and its expansion file (OBB).
 * The undo button takes 0.2 s instead of 2.4 s: after the model is restored,
   the game waited a frame for each unit of the mission while rebuilding the
   board, even for the units already there.
+* The game's code and the C# code Mono compiles are mapped in 2 MB blocks
+  instead of 4 KB pages: the CPU finds their addresses in its translation
+  cache (TLB) instead of looking them up in memory, which cost 30-80 ns each
+  time (measured on the console). `[performance] large_pages` turns it off.
 * The video options the Switch cannot honour (resolution, full screen, v-sync)
   are hidden from the game's menu.
 * The doors' leaves are drawn where their animation puts them: the missions

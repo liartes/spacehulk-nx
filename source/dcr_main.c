@@ -22,6 +22,7 @@
 #include "imports.h"
 #include "jit_arena.h"
 #include "rt_boot.h"
+#include "sh_bigpages.h"
 #include "so_util.h"
 #include "util.h"
 
@@ -89,7 +90,20 @@ static int load_module(so_module *mod, const char *name) {
   size_t max = PORT_SO_REGION_BYTES;
   if (dcr_is_emulator() && mod == &unity_mod && (base = memalign(0x1000, PORT_SO_REGION_BYTES)))
     max = PORT_SO_REGION_BYTES - EMU_POOL_BYTES;
+  /* [performance] large_pages: staging and address 2 MB-aligned, so the code
+   * can be mapped in 2 MB blocks (sh_bigpages.c) */
+  size_t staged = 0;
+  void *big = base ? NULL : sh_bigpages_staging(path, &staged);
+  if (big && staged <= max) {
+    base = big;
+    max = staged;
+  } else if (big) {
+    free(big); /* so_load refuses it as too large (-3) */
+    big = NULL;
+  }
+  sh_bigpages_begin();
   int rc = so_load(mod, path, base, max);
+  sh_bigpages_end();
   if (rc < 0) {
     const char *why = rc == -1 ? "cannot open it, or it is not a 32-bit ARM ELF"
                     : rc == -2 ? "out of memory"
@@ -98,7 +112,7 @@ static int load_module(so_module *mod, const char *name) {
     debugPrintf("[boot] so_load(%s) failed rc=%d: %s\n", path, rc, why);
     return -1;
   }
-  if (base) {
+  if (base && base != big) {
     g_emu_pool = (uint32_t *)((uint8_t *)base + mod->load_size);
     memset(g_emu_pool, 0, EMU_POOL_BYTES);
   }
@@ -163,6 +177,10 @@ int port_load(const char *apk) {
   so_flush_caches(&unity_mod);
   so_flush_caches(&mono_mod);
   debugPrintf("[boot] modules mapped RX/RW\n");
+  sh_bigpages_report(DCR_LIB_UNITY, (uintptr_t)unity_mod.load_virtbase, (uintptr_t)unity_mod.load_base,
+                     unity_mod.load_size);
+  sh_bigpages_report(DCR_LIB_MONO, (uintptr_t)mono_mod.load_virtbase, (uintptr_t)mono_mod.load_base,
+                     mono_mod.load_size);
 
   /* Patches and hooks go in before any engine code runs (init_array first). */
   dcr_patches_apply(); /* Choreographer VSYNC enable/stop -> bx lr */
@@ -181,6 +199,10 @@ int port_load(const char *apk) {
     fatal_error("Could not reserve executable memory for Mono's JIT.");
   dcr_mono_hook_exceptions(); /* names the scripts behind "NullReferenceException" lines */
   dcr_mod_jitlog_install();   /* a debug aid: <root>/jitlog maps the JIT code (dcr_mod.c) */
+  if (dcr_config()->tlb_probe) {
+    void sh_tlbprobe_start(void);
+    sh_tlbprobe_start(); /* [debug] tlb_probe: a minute from now (sh_tlbprobe.c) */
+  }
   return 0;
 }
 
